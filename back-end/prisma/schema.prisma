@@ -24,7 +24,6 @@ model vendorlist {
   name      String                   @db.VarChar(100)
   latitude  Float
   longitude Float
-  location  Unsupported("geometry")?
 
   @@schema("vendors")
 }
