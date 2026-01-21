@@ -7,7 +7,7 @@ CREATE TABLE "vendors"."vendorlist" (
     "name" VARCHAR(100) NOT NULL,
     "latitude" DOUBLE PRECISION NOT NULL,
     "longitude" DOUBLE PRECISION NOT NULL,
-    "location" geometry,
+    "location" "geography",
 
     CONSTRAINT "vendorlist_pkey" PRIMARY KEY ("id")
 );

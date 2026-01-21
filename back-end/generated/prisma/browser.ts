@@ -18,12 +18,12 @@ export { Prisma }
 export * as $Enums from './enums.js'
 export * from './enums.js';
 /**
- * Model VendorList
- * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
- */
-export type VendorList = Prisma.VendorListModel
-/**
  * Model spatial_ref_sys
  * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
  */
 export type spatial_ref_sys = Prisma.spatial_ref_sysModel
+/**
+ * Model vendorlist
+ * 
+ */
+export type vendorlist = Prisma.vendorlistModel

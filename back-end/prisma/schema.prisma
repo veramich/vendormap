@@ -26,5 +26,6 @@ model vendorlist {
   longitude Float @db.DoublePrecision
   location  Unsupported("geometry")?
 
+  @@map("vendorlist")
   @@schema("vendors")
 }

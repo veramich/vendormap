@@ -17,10 +17,10 @@ import type * as Prisma from "./prismaNamespace.js"
 
 const config: runtime.GetPrismaClientConfig = {
   "previewFeatures": [],
-  "clientVersion": "7.2.0",
-  "engineVersion": "0c8ef2ce45c83248ab3df073180d5eda9e8be7a3",
+  "clientVersion": "7.3.0",
+  "engineVersion": "9d6ad21cbbceab97458517b147a6a09ff43aa735",
   "activeProvider": "postgresql",
-  "inlineSchema": "generator client {\n  provider = \"prisma-client\"\n  output   = \"../generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  schemas  = [\"public\", \"vendors\"]\n}\n\n/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.\nmodel VendorList {\n  id        Int                      @id @default(autoincrement())\n  name      String                   @db.VarChar(100)\n  latitude  Float\n  longitude Float\n  location  Unsupported(\"geometry\")?\n\n  @@map(\"vendorlist\")\n  @@schema(\"vendors\")\n}\n\n/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.\nmodel spatial_ref_sys {\n  srid      Int     @id\n  auth_name String? @db.VarChar(256)\n  auth_srid Int?\n  srtext    String? @db.VarChar(2048)\n  proj4text String? @db.VarChar(2048)\n\n  @@schema(\"public\")\n}\n",
+  "inlineSchema": "generator client {\n  provider = \"prisma-client\"\n  output   = \"../generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  schemas  = [\"public\", \"vendors\"]\n}\n\n/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.\nmodel spatial_ref_sys {\n  srid      Int     @id\n  auth_name String? @db.VarChar(256)\n  auth_srid Int?\n  srtext    String? @db.VarChar(2048)\n  proj4text String? @db.VarChar(2048)\n\n  @@schema(\"public\")\n}\n\nmodel vendorlist {\n  id        Int                      @id @default(autoincrement())\n  name      String                   @db.VarChar(100)\n  latitude  Float                    @db.DoublePrecision\n  longitude Float                    @db.DoublePrecision\n  location  Unsupported(\"geometry\")?\n\n  @@map(\"vendorlist\")\n  @@schema(\"vendors\")\n}\n",
   "runtimeDataModel": {
     "models": {},
     "enums": {},
@@ -28,7 +28,7 @@ const config: runtime.GetPrismaClientConfig = {
   }
 }
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"VendorList\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"latitude\",\"kind\":\"scalar\",\"type\":\"Float\"},{\"name\":\"longitude\",\"kind\":\"scalar\",\"type\":\"Float\"}],\"dbName\":\"vendorlist\"},\"spatial_ref_sys\":{\"fields\":[{\"name\":\"srid\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"auth_name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"auth_srid\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"srtext\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"proj4text\",\"kind\":\"scalar\",\"type\":\"String\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"spatial_ref_sys\":{\"fields\":[{\"name\":\"srid\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"auth_name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"auth_srid\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"srtext\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"proj4text\",\"kind\":\"scalar\",\"type\":\"String\"}],\"dbName\":null},\"vendorlist\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"latitude\",\"kind\":\"scalar\",\"type\":\"Float\"},{\"name\":\"longitude\",\"kind\":\"scalar\",\"type\":\"Float\"}],\"dbName\":\"vendorlist\"}},\"enums\":{},\"types\":{}}")
 
 async function decodeBase64AsWasm(wasmBase64: string): Promise<WebAssembly.Module> {
   const { Buffer } = await import('node:buffer')
@@ -37,12 +37,14 @@ async function decodeBase64AsWasm(wasmBase64: string): Promise<WebAssembly.Modul
 }
 
 config.compilerWasm = {
-  getRuntime: async () => await import("@prisma/client/runtime/query_compiler_bg.postgresql.mjs"),
+  getRuntime: async () => await import("@prisma/client/runtime/query_compiler_fast_bg.postgresql.mjs"),
 
   getQueryCompilerWasmModule: async () => {
-    const { wasm } = await import("@prisma/client/runtime/query_compiler_bg.postgresql.wasm-base64.mjs")
+    const { wasm } = await import("@prisma/client/runtime/query_compiler_fast_bg.postgresql.wasm-base64.mjs")
     return await decodeBase64AsWasm(wasm)
-  }
+  },
+
+  importName: "./query_compiler_fast_bg.js"
 }
 
 
@@ -58,8 +60,8 @@ export interface PrismaClientConstructor {
    * @example
    * ```
    * const prisma = new PrismaClient()
-   * // Fetch zero or more VendorLists
-   * const vendorLists = await prisma.vendorList.findMany()
+   * // Fetch zero or more Spatial_ref_sys
+   * const spatial_ref_sys = await prisma.spatial_ref_sys.findMany()
    * ```
    * 
    * Read more in our [docs](https://pris.ly/d/client).
@@ -80,8 +82,8 @@ export interface PrismaClientConstructor {
  * @example
  * ```
  * const prisma = new PrismaClient()
- * // Fetch zero or more VendorLists
- * const vendorLists = await prisma.vendorList.findMany()
+ * // Fetch zero or more Spatial_ref_sys
+ * const spatial_ref_sys = await prisma.spatial_ref_sys.findMany()
  * ```
  * 
  * Read more in our [docs](https://pris.ly/d/client).
@@ -175,16 +177,6 @@ export interface PrismaClient<
   }>>
 
       /**
-   * `prisma.vendorList`: Exposes CRUD operations for the **VendorList** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more VendorLists
-    * const vendorLists = await prisma.vendorList.findMany()
-    * ```
-    */
-  get vendorList(): Prisma.VendorListDelegate<ExtArgs, { omit: OmitOpts }>;
-
-  /**
    * `prisma.spatial_ref_sys`: Exposes CRUD operations for the **spatial_ref_sys** model.
     * Example usage:
     * ```ts
@@ -193,6 +185,16 @@ export interface PrismaClient<
     * ```
     */
   get spatial_ref_sys(): Prisma.spatial_ref_sysDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.vendorlist`: Exposes CRUD operations for the **vendorlist** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Vendorlists
+    * const vendorlists = await prisma.vendorlist.findMany()
+    * ```
+    */
+  get vendorlist(): Prisma.vendorlistDelegate<ExtArgs, { omit: OmitOpts }>;
 }
 
 export function getPrismaClientClass(): PrismaClientConstructor {

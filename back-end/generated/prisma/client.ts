@@ -29,8 +29,8 @@ export * from "./enums.js"
  * @example
  * ```
  * const prisma = new PrismaClient()
- * // Fetch zero or more VendorLists
- * const vendorLists = await prisma.vendorList.findMany()
+ * // Fetch zero or more Spatial_ref_sys
+ * const spatial_ref_sys = await prisma.spatial_ref_sys.findMany()
  * ```
  * 
  * Read more in our [docs](https://pris.ly/d/client).
@@ -40,12 +40,12 @@ export type PrismaClient<LogOpts extends Prisma.LogLevel = never, OmitOpts exten
 export { Prisma }
 
 /**
- * Model VendorList
- * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
- */
-export type VendorList = Prisma.VendorListModel
-/**
  * Model spatial_ref_sys
  * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
  */
 export type spatial_ref_sys = Prisma.spatial_ref_sysModel
+/**
+ * Model vendorlist
+ * 
+ */
+export type vendorlist = Prisma.vendorlistModel

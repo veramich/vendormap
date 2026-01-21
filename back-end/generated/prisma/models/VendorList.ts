@@ -4,7 +4,7 @@
 // biome-ignore-all lint: generated file
 // @ts-nocheck 
 /*
- * This file exports the `VendorList` model and its related types.
+ * This file exports the `vendorlist` model and its related types.
  *
  * 🟢 You can import this file directly.
  */
@@ -13,46 +13,46 @@ import type * as $Enums from "../enums.js"
 import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
- * Model VendorList
- * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+ * Model vendorlist
+ * 
  */
-export type VendorListModel = runtime.Types.Result.DefaultSelection<Prisma.$VendorListPayload>
+export type vendorlistModel = runtime.Types.Result.DefaultSelection<Prisma.$vendorlistPayload>
 
-export type AggregateVendorList = {
-  _count: VendorListCountAggregateOutputType | null
-  _avg: VendorListAvgAggregateOutputType | null
-  _sum: VendorListSumAggregateOutputType | null
-  _min: VendorListMinAggregateOutputType | null
-  _max: VendorListMaxAggregateOutputType | null
+export type AggregateVendorlist = {
+  _count: VendorlistCountAggregateOutputType | null
+  _avg: VendorlistAvgAggregateOutputType | null
+  _sum: VendorlistSumAggregateOutputType | null
+  _min: VendorlistMinAggregateOutputType | null
+  _max: VendorlistMaxAggregateOutputType | null
 }
 
-export type VendorListAvgAggregateOutputType = {
+export type VendorlistAvgAggregateOutputType = {
   id: number | null
   latitude: number | null
   longitude: number | null
 }
 
-export type VendorListSumAggregateOutputType = {
+export type VendorlistSumAggregateOutputType = {
   id: number | null
   latitude: number | null
   longitude: number | null
 }
 
-export type VendorListMinAggregateOutputType = {
-  id: number | null
-  name: string | null
-  latitude: number | null
-  longitude: number | null
-}
-
-export type VendorListMaxAggregateOutputType = {
+export type VendorlistMinAggregateOutputType = {
   id: number | null
   name: string | null
   latitude: number | null
   longitude: number | null
 }
 
-export type VendorListCountAggregateOutputType = {
+export type VendorlistMaxAggregateOutputType = {
+  id: number | null
+  name: string | null
+  latitude: number | null
+  longitude: number | null
+}
+
+export type VendorlistCountAggregateOutputType = {
   id: number
   name: number
   latitude: number
@@ -61,33 +61,33 @@ export type VendorListCountAggregateOutputType = {
 }
 
 
-export type VendorListAvgAggregateInputType = {
+export type VendorlistAvgAggregateInputType = {
   id?: true
   latitude?: true
   longitude?: true
 }
 
-export type VendorListSumAggregateInputType = {
+export type VendorlistSumAggregateInputType = {
   id?: true
   latitude?: true
   longitude?: true
 }
 
-export type VendorListMinAggregateInputType = {
-  id?: true
-  name?: true
-  latitude?: true
-  longitude?: true
-}
-
-export type VendorListMaxAggregateInputType = {
+export type VendorlistMinAggregateInputType = {
   id?: true
   name?: true
   latitude?: true
   longitude?: true
 }
 
-export type VendorListCountAggregateInputType = {
+export type VendorlistMaxAggregateInputType = {
+  id?: true
+  name?: true
+  latitude?: true
+  longitude?: true
+}
+
+export type VendorlistCountAggregateInputType = {
   id?: true
   name?: true
   latitude?: true
@@ -95,242 +95,242 @@ export type VendorListCountAggregateInputType = {
   _all?: true
 }
 
-export type VendorListAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type VendorlistAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Filter which VendorList to aggregate.
+   * Filter which vendorlist to aggregate.
    */
-  where?: Prisma.VendorListWhereInput
+  where?: Prisma.vendorlistWhereInput
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
    * 
-   * Determine the order of VendorLists to fetch.
+   * Determine the order of vendorlists to fetch.
    */
-  orderBy?: Prisma.VendorListOrderByWithRelationInput | Prisma.VendorListOrderByWithRelationInput[]
+  orderBy?: Prisma.vendorlistOrderByWithRelationInput | Prisma.vendorlistOrderByWithRelationInput[]
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
    * 
    * Sets the start position
    */
-  cursor?: Prisma.VendorListWhereUniqueInput
+  cursor?: Prisma.vendorlistWhereUniqueInput
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
    * 
-   * Take `±n` VendorLists from the position of the cursor.
+   * Take `±n` vendorlists from the position of the cursor.
    */
   take?: number
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
    * 
-   * Skip the first `n` VendorLists.
+   * Skip the first `n` vendorlists.
    */
   skip?: number
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
-   * Count returned VendorLists
+   * Count returned vendorlists
   **/
-  _count?: true | VendorListCountAggregateInputType
+  _count?: true | VendorlistCountAggregateInputType
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
    * Select which fields to average
   **/
-  _avg?: VendorListAvgAggregateInputType
+  _avg?: VendorlistAvgAggregateInputType
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
    * Select which fields to sum
   **/
-  _sum?: VendorListSumAggregateInputType
+  _sum?: VendorlistSumAggregateInputType
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
    * Select which fields to find the minimum value
   **/
-  _min?: VendorListMinAggregateInputType
+  _min?: VendorlistMinAggregateInputType
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
    * Select which fields to find the maximum value
   **/
-  _max?: VendorListMaxAggregateInputType
+  _max?: VendorlistMaxAggregateInputType
 }
 
-export type GetVendorListAggregateType<T extends VendorListAggregateArgs> = {
-      [P in keyof T & keyof AggregateVendorList]: P extends '_count' | 'count'
+export type GetVendorlistAggregateType<T extends VendorlistAggregateArgs> = {
+      [P in keyof T & keyof AggregateVendorlist]: P extends '_count' | 'count'
     ? T[P] extends true
       ? number
-      : Prisma.GetScalarType<T[P], AggregateVendorList[P]>
-    : Prisma.GetScalarType<T[P], AggregateVendorList[P]>
+      : Prisma.GetScalarType<T[P], AggregateVendorlist[P]>
+    : Prisma.GetScalarType<T[P], AggregateVendorlist[P]>
 }
 
 
 
 
-export type VendorListGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.VendorListWhereInput
-  orderBy?: Prisma.VendorListOrderByWithAggregationInput | Prisma.VendorListOrderByWithAggregationInput[]
-  by: Prisma.VendorListScalarFieldEnum[] | Prisma.VendorListScalarFieldEnum
-  having?: Prisma.VendorListScalarWhereWithAggregatesInput
+export type vendorlistGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.vendorlistWhereInput
+  orderBy?: Prisma.vendorlistOrderByWithAggregationInput | Prisma.vendorlistOrderByWithAggregationInput[]
+  by: Prisma.VendorlistScalarFieldEnum[] | Prisma.VendorlistScalarFieldEnum
+  having?: Prisma.vendorlistScalarWhereWithAggregatesInput
   take?: number
   skip?: number
-  _count?: VendorListCountAggregateInputType | true
-  _avg?: VendorListAvgAggregateInputType
-  _sum?: VendorListSumAggregateInputType
-  _min?: VendorListMinAggregateInputType
-  _max?: VendorListMaxAggregateInputType
+  _count?: VendorlistCountAggregateInputType | true
+  _avg?: VendorlistAvgAggregateInputType
+  _sum?: VendorlistSumAggregateInputType
+  _min?: VendorlistMinAggregateInputType
+  _max?: VendorlistMaxAggregateInputType
 }
 
-export type VendorListGroupByOutputType = {
+export type VendorlistGroupByOutputType = {
   id: number
   name: string
   latitude: number
   longitude: number
-  _count: VendorListCountAggregateOutputType | null
-  _avg: VendorListAvgAggregateOutputType | null
-  _sum: VendorListSumAggregateOutputType | null
-  _min: VendorListMinAggregateOutputType | null
-  _max: VendorListMaxAggregateOutputType | null
+  _count: VendorlistCountAggregateOutputType | null
+  _avg: VendorlistAvgAggregateOutputType | null
+  _sum: VendorlistSumAggregateOutputType | null
+  _min: VendorlistMinAggregateOutputType | null
+  _max: VendorlistMaxAggregateOutputType | null
 }
 
-type GetVendorListGroupByPayload<T extends VendorListGroupByArgs> = Prisma.PrismaPromise<
+type GetVendorlistGroupByPayload<T extends vendorlistGroupByArgs> = Prisma.PrismaPromise<
   Array<
-    Prisma.PickEnumerable<VendorListGroupByOutputType, T['by']> &
+    Prisma.PickEnumerable<VendorlistGroupByOutputType, T['by']> &
       {
-        [P in ((keyof T) & (keyof VendorListGroupByOutputType))]: P extends '_count'
+        [P in ((keyof T) & (keyof VendorlistGroupByOutputType))]: P extends '_count'
           ? T[P] extends boolean
             ? number
-            : Prisma.GetScalarType<T[P], VendorListGroupByOutputType[P]>
-          : Prisma.GetScalarType<T[P], VendorListGroupByOutputType[P]>
+            : Prisma.GetScalarType<T[P], VendorlistGroupByOutputType[P]>
+          : Prisma.GetScalarType<T[P], VendorlistGroupByOutputType[P]>
       }
     >
   >
 
 
 
-export type VendorListWhereInput = {
-  AND?: Prisma.VendorListWhereInput | Prisma.VendorListWhereInput[]
-  OR?: Prisma.VendorListWhereInput[]
-  NOT?: Prisma.VendorListWhereInput | Prisma.VendorListWhereInput[]
-  id?: Prisma.IntFilter<"VendorList"> | number
-  name?: Prisma.StringFilter<"VendorList"> | string
-  latitude?: Prisma.FloatFilter<"VendorList"> | number
-  longitude?: Prisma.FloatFilter<"VendorList"> | number
+export type vendorlistWhereInput = {
+  AND?: Prisma.vendorlistWhereInput | Prisma.vendorlistWhereInput[]
+  OR?: Prisma.vendorlistWhereInput[]
+  NOT?: Prisma.vendorlistWhereInput | Prisma.vendorlistWhereInput[]
+  id?: Prisma.IntFilter<"vendorlist"> | number
+  name?: Prisma.StringFilter<"vendorlist"> | string
+  latitude?: Prisma.FloatFilter<"vendorlist"> | number
+  longitude?: Prisma.FloatFilter<"vendorlist"> | number
 }
 
-export type VendorListOrderByWithRelationInput = {
+export type vendorlistOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
 }
 
-export type VendorListWhereUniqueInput = Prisma.AtLeast<{
+export type vendorlistWhereUniqueInput = Prisma.AtLeast<{
   id?: number
-  AND?: Prisma.VendorListWhereInput | Prisma.VendorListWhereInput[]
-  OR?: Prisma.VendorListWhereInput[]
-  NOT?: Prisma.VendorListWhereInput | Prisma.VendorListWhereInput[]
-  name?: Prisma.StringFilter<"VendorList"> | string
-  latitude?: Prisma.FloatFilter<"VendorList"> | number
-  longitude?: Prisma.FloatFilter<"VendorList"> | number
+  AND?: Prisma.vendorlistWhereInput | Prisma.vendorlistWhereInput[]
+  OR?: Prisma.vendorlistWhereInput[]
+  NOT?: Prisma.vendorlistWhereInput | Prisma.vendorlistWhereInput[]
+  name?: Prisma.StringFilter<"vendorlist"> | string
+  latitude?: Prisma.FloatFilter<"vendorlist"> | number
+  longitude?: Prisma.FloatFilter<"vendorlist"> | number
 }, "id">
 
-export type VendorListOrderByWithAggregationInput = {
+export type vendorlistOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
-  _count?: Prisma.VendorListCountOrderByAggregateInput
-  _avg?: Prisma.VendorListAvgOrderByAggregateInput
-  _max?: Prisma.VendorListMaxOrderByAggregateInput
-  _min?: Prisma.VendorListMinOrderByAggregateInput
-  _sum?: Prisma.VendorListSumOrderByAggregateInput
+  _count?: Prisma.vendorlistCountOrderByAggregateInput
+  _avg?: Prisma.vendorlistAvgOrderByAggregateInput
+  _max?: Prisma.vendorlistMaxOrderByAggregateInput
+  _min?: Prisma.vendorlistMinOrderByAggregateInput
+  _sum?: Prisma.vendorlistSumOrderByAggregateInput
 }
 
-export type VendorListScalarWhereWithAggregatesInput = {
-  AND?: Prisma.VendorListScalarWhereWithAggregatesInput | Prisma.VendorListScalarWhereWithAggregatesInput[]
-  OR?: Prisma.VendorListScalarWhereWithAggregatesInput[]
-  NOT?: Prisma.VendorListScalarWhereWithAggregatesInput | Prisma.VendorListScalarWhereWithAggregatesInput[]
-  id?: Prisma.IntWithAggregatesFilter<"VendorList"> | number
-  name?: Prisma.StringWithAggregatesFilter<"VendorList"> | string
-  latitude?: Prisma.FloatWithAggregatesFilter<"VendorList"> | number
-  longitude?: Prisma.FloatWithAggregatesFilter<"VendorList"> | number
+export type vendorlistScalarWhereWithAggregatesInput = {
+  AND?: Prisma.vendorlistScalarWhereWithAggregatesInput | Prisma.vendorlistScalarWhereWithAggregatesInput[]
+  OR?: Prisma.vendorlistScalarWhereWithAggregatesInput[]
+  NOT?: Prisma.vendorlistScalarWhereWithAggregatesInput | Prisma.vendorlistScalarWhereWithAggregatesInput[]
+  id?: Prisma.IntWithAggregatesFilter<"vendorlist"> | number
+  name?: Prisma.StringWithAggregatesFilter<"vendorlist"> | string
+  latitude?: Prisma.FloatWithAggregatesFilter<"vendorlist"> | number
+  longitude?: Prisma.FloatWithAggregatesFilter<"vendorlist"> | number
 }
 
-export type VendorListCreateInput = {
+export type vendorlistCreateInput = {
   name: string
   latitude: number
   longitude: number
 }
 
-export type VendorListUncheckedCreateInput = {
+export type vendorlistUncheckedCreateInput = {
   id?: number
   name: string
   latitude: number
   longitude: number
 }
 
-export type VendorListUpdateInput = {
+export type vendorlistUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   latitude?: Prisma.FloatFieldUpdateOperationsInput | number
   longitude?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
-export type VendorListUncheckedUpdateInput = {
+export type vendorlistUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   name?: Prisma.StringFieldUpdateOperationsInput | string
   latitude?: Prisma.FloatFieldUpdateOperationsInput | number
   longitude?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
-export type VendorListCreateManyInput = {
+export type vendorlistCreateManyInput = {
   id?: number
   name: string
   latitude: number
   longitude: number
 }
 
-export type VendorListUpdateManyMutationInput = {
+export type vendorlistUpdateManyMutationInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   latitude?: Prisma.FloatFieldUpdateOperationsInput | number
   longitude?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
-export type VendorListUncheckedUpdateManyInput = {
+export type vendorlistUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   name?: Prisma.StringFieldUpdateOperationsInput | string
   latitude?: Prisma.FloatFieldUpdateOperationsInput | number
   longitude?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
-export type VendorListCountOrderByAggregateInput = {
+export type vendorlistCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
 }
 
-export type VendorListAvgOrderByAggregateInput = {
+export type vendorlistAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
 }
 
-export type VendorListMaxOrderByAggregateInput = {
-  id?: Prisma.SortOrder
-  name?: Prisma.SortOrder
-  latitude?: Prisma.SortOrder
-  longitude?: Prisma.SortOrder
-}
-
-export type VendorListMinOrderByAggregateInput = {
+export type vendorlistMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
 }
 
-export type VendorListSumOrderByAggregateInput = {
+export type vendorlistMinOrderByAggregateInput = {
+  id?: Prisma.SortOrder
+  name?: Prisma.SortOrder
+  latitude?: Prisma.SortOrder
+  longitude?: Prisma.SortOrder
+}
+
+export type vendorlistSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
@@ -348,184 +348,176 @@ export type FloatFieldUpdateOperationsInput = {
   divide?: number
 }
 
-export type IntFieldUpdateOperationsInput = {
-  set?: number
-  increment?: number
-  decrement?: number
-  multiply?: number
-  divide?: number
-}
 
 
-
-export type VendorListSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+export type vendorlistSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
   latitude?: boolean
   longitude?: boolean
-}, ExtArgs["result"]["vendorList"]>
+}, ExtArgs["result"]["vendorlist"]>
 
-export type VendorListSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+export type vendorlistSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
   latitude?: boolean
   longitude?: boolean
-}, ExtArgs["result"]["vendorList"]>
+}, ExtArgs["result"]["vendorlist"]>
 
-export type VendorListSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+export type vendorlistSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
   latitude?: boolean
   longitude?: boolean
-}, ExtArgs["result"]["vendorList"]>
+}, ExtArgs["result"]["vendorlist"]>
 
-export type VendorListSelectScalar = {
+export type vendorlistSelectScalar = {
   id?: boolean
   name?: boolean
   latitude?: boolean
   longitude?: boolean
 }
 
-export type VendorListOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "latitude" | "longitude", ExtArgs["result"]["vendorList"]>
+export type vendorlistOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "latitude" | "longitude", ExtArgs["result"]["vendorlist"]>
 
-export type $VendorListPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  name: "VendorList"
+export type $vendorlistPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  name: "vendorlist"
   objects: {}
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     name: string
     latitude: number
     longitude: number
-  }, ExtArgs["result"]["vendorList"]>
+  }, ExtArgs["result"]["vendorlist"]>
   composites: {}
 }
 
-export type VendorListGetPayload<S extends boolean | null | undefined | VendorListDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$VendorListPayload, S>
+export type vendorlistGetPayload<S extends boolean | null | undefined | vendorlistDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$vendorlistPayload, S>
 
-export type VendorListCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
-  Omit<VendorListFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
-    select?: VendorListCountAggregateInputType | true
+export type vendorlistCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+  Omit<vendorlistFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+    select?: VendorlistCountAggregateInputType | true
   }
 
-export interface VendorListDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
-  [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['VendorList'], meta: { name: 'VendorList' } }
+export interface vendorlistDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+  [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['vendorlist'], meta: { name: 'vendorlist' } }
   /**
-   * Find zero or one VendorList that matches the filter.
-   * @param {VendorListFindUniqueArgs} args - Arguments to find a VendorList
+   * Find zero or one Vendorlist that matches the filter.
+   * @param {vendorlistFindUniqueArgs} args - Arguments to find a Vendorlist
    * @example
-   * // Get one VendorList
-   * const vendorList = await prisma.vendorList.findUnique({
+   * // Get one Vendorlist
+   * const vendorlist = await prisma.vendorlist.findUnique({
    *   where: {
    *     // ... provide filter here
    *   }
    * })
    */
-  findUnique<T extends VendorListFindUniqueArgs>(args: Prisma.SelectSubset<T, VendorListFindUniqueArgs<ExtArgs>>): Prisma.Prisma__VendorListClient<runtime.Types.Result.GetResult<Prisma.$VendorListPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  findUnique<T extends vendorlistFindUniqueArgs>(args: Prisma.SelectSubset<T, vendorlistFindUniqueArgs<ExtArgs>>): Prisma.Prisma__vendorlistClient<runtime.Types.Result.GetResult<Prisma.$vendorlistPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
 
   /**
-   * Find one VendorList that matches the filter or throw an error with `error.code='P2025'`
+   * Find one Vendorlist that matches the filter or throw an error with `error.code='P2025'`
    * if no matches were found.
-   * @param {VendorListFindUniqueOrThrowArgs} args - Arguments to find a VendorList
+   * @param {vendorlistFindUniqueOrThrowArgs} args - Arguments to find a Vendorlist
    * @example
-   * // Get one VendorList
-   * const vendorList = await prisma.vendorList.findUniqueOrThrow({
+   * // Get one Vendorlist
+   * const vendorlist = await prisma.vendorlist.findUniqueOrThrow({
    *   where: {
    *     // ... provide filter here
    *   }
    * })
    */
-  findUniqueOrThrow<T extends VendorListFindUniqueOrThrowArgs>(args: Prisma.SelectSubset<T, VendorListFindUniqueOrThrowArgs<ExtArgs>>): Prisma.Prisma__VendorListClient<runtime.Types.Result.GetResult<Prisma.$VendorListPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+  findUniqueOrThrow<T extends vendorlistFindUniqueOrThrowArgs>(args: Prisma.SelectSubset<T, vendorlistFindUniqueOrThrowArgs<ExtArgs>>): Prisma.Prisma__vendorlistClient<runtime.Types.Result.GetResult<Prisma.$vendorlistPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
   /**
-   * Find the first VendorList that matches the filter.
+   * Find the first Vendorlist that matches the filter.
    * Note, that providing `undefined` is treated as the value not being there.
    * Read more here: https://pris.ly/d/null-undefined
-   * @param {VendorListFindFirstArgs} args - Arguments to find a VendorList
+   * @param {vendorlistFindFirstArgs} args - Arguments to find a Vendorlist
    * @example
-   * // Get one VendorList
-   * const vendorList = await prisma.vendorList.findFirst({
+   * // Get one Vendorlist
+   * const vendorlist = await prisma.vendorlist.findFirst({
    *   where: {
    *     // ... provide filter here
    *   }
    * })
    */
-  findFirst<T extends VendorListFindFirstArgs>(args?: Prisma.SelectSubset<T, VendorListFindFirstArgs<ExtArgs>>): Prisma.Prisma__VendorListClient<runtime.Types.Result.GetResult<Prisma.$VendorListPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  findFirst<T extends vendorlistFindFirstArgs>(args?: Prisma.SelectSubset<T, vendorlistFindFirstArgs<ExtArgs>>): Prisma.Prisma__vendorlistClient<runtime.Types.Result.GetResult<Prisma.$vendorlistPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
 
   /**
-   * Find the first VendorList that matches the filter or
+   * Find the first Vendorlist that matches the filter or
    * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
    * Note, that providing `undefined` is treated as the value not being there.
    * Read more here: https://pris.ly/d/null-undefined
-   * @param {VendorListFindFirstOrThrowArgs} args - Arguments to find a VendorList
+   * @param {vendorlistFindFirstOrThrowArgs} args - Arguments to find a Vendorlist
    * @example
-   * // Get one VendorList
-   * const vendorList = await prisma.vendorList.findFirstOrThrow({
+   * // Get one Vendorlist
+   * const vendorlist = await prisma.vendorlist.findFirstOrThrow({
    *   where: {
    *     // ... provide filter here
    *   }
    * })
    */
-  findFirstOrThrow<T extends VendorListFindFirstOrThrowArgs>(args?: Prisma.SelectSubset<T, VendorListFindFirstOrThrowArgs<ExtArgs>>): Prisma.Prisma__VendorListClient<runtime.Types.Result.GetResult<Prisma.$VendorListPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+  findFirstOrThrow<T extends vendorlistFindFirstOrThrowArgs>(args?: Prisma.SelectSubset<T, vendorlistFindFirstOrThrowArgs<ExtArgs>>): Prisma.Prisma__vendorlistClient<runtime.Types.Result.GetResult<Prisma.$vendorlistPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
   /**
-   * Find zero or more VendorLists that matches the filter.
+   * Find zero or more Vendorlists that matches the filter.
    * Note, that providing `undefined` is treated as the value not being there.
    * Read more here: https://pris.ly/d/null-undefined
-   * @param {VendorListFindManyArgs} args - Arguments to filter and select certain fields only.
+   * @param {vendorlistFindManyArgs} args - Arguments to filter and select certain fields only.
    * @example
-   * // Get all VendorLists
-   * const vendorLists = await prisma.vendorList.findMany()
+   * // Get all Vendorlists
+   * const vendorlists = await prisma.vendorlist.findMany()
    * 
-   * // Get first 10 VendorLists
-   * const vendorLists = await prisma.vendorList.findMany({ take: 10 })
+   * // Get first 10 Vendorlists
+   * const vendorlists = await prisma.vendorlist.findMany({ take: 10 })
    * 
    * // Only select the `id`
-   * const vendorListWithIdOnly = await prisma.vendorList.findMany({ select: { id: true } })
+   * const vendorlistWithIdOnly = await prisma.vendorlist.findMany({ select: { id: true } })
    * 
    */
-  findMany<T extends VendorListFindManyArgs>(args?: Prisma.SelectSubset<T, VendorListFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VendorListPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+  findMany<T extends vendorlistFindManyArgs>(args?: Prisma.SelectSubset<T, vendorlistFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$vendorlistPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
 
   /**
-   * Create a VendorList.
-   * @param {VendorListCreateArgs} args - Arguments to create a VendorList.
+   * Create a Vendorlist.
+   * @param {vendorlistCreateArgs} args - Arguments to create a Vendorlist.
    * @example
-   * // Create one VendorList
-   * const VendorList = await prisma.vendorList.create({
+   * // Create one Vendorlist
+   * const Vendorlist = await prisma.vendorlist.create({
    *   data: {
-   *     // ... data to create a VendorList
+   *     // ... data to create a Vendorlist
    *   }
    * })
    * 
    */
-  create<T extends VendorListCreateArgs>(args: Prisma.SelectSubset<T, VendorListCreateArgs<ExtArgs>>): Prisma.Prisma__VendorListClient<runtime.Types.Result.GetResult<Prisma.$VendorListPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+  create<T extends vendorlistCreateArgs>(args: Prisma.SelectSubset<T, vendorlistCreateArgs<ExtArgs>>): Prisma.Prisma__vendorlistClient<runtime.Types.Result.GetResult<Prisma.$vendorlistPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
   /**
-   * Create many VendorLists.
-   * @param {VendorListCreateManyArgs} args - Arguments to create many VendorLists.
+   * Create many Vendorlists.
+   * @param {vendorlistCreateManyArgs} args - Arguments to create many Vendorlists.
    * @example
-   * // Create many VendorLists
-   * const vendorList = await prisma.vendorList.createMany({
+   * // Create many Vendorlists
+   * const vendorlist = await prisma.vendorlist.createMany({
    *   data: [
    *     // ... provide data here
    *   ]
    * })
    *     
    */
-  createMany<T extends VendorListCreateManyArgs>(args?: Prisma.SelectSubset<T, VendorListCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<Prisma.BatchPayload>
+  createMany<T extends vendorlistCreateManyArgs>(args?: Prisma.SelectSubset<T, vendorlistCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<Prisma.BatchPayload>
 
   /**
-   * Create many VendorLists and returns the data saved in the database.
-   * @param {VendorListCreateManyAndReturnArgs} args - Arguments to create many VendorLists.
+   * Create many Vendorlists and returns the data saved in the database.
+   * @param {vendorlistCreateManyAndReturnArgs} args - Arguments to create many Vendorlists.
    * @example
-   * // Create many VendorLists
-   * const vendorList = await prisma.vendorList.createManyAndReturn({
+   * // Create many Vendorlists
+   * const vendorlist = await prisma.vendorlist.createManyAndReturn({
    *   data: [
    *     // ... provide data here
    *   ]
    * })
    * 
-   * // Create many VendorLists and only return the `id`
-   * const vendorListWithIdOnly = await prisma.vendorList.createManyAndReturn({
+   * // Create many Vendorlists and only return the `id`
+   * const vendorlistWithIdOnly = await prisma.vendorlist.createManyAndReturn({
    *   select: { id: true },
    *   data: [
    *     // ... provide data here
@@ -535,28 +527,28 @@ export interface VendorListDelegate<ExtArgs extends runtime.Types.Extensions.Int
    * Read more here: https://pris.ly/d/null-undefined
    * 
    */
-  createManyAndReturn<T extends VendorListCreateManyAndReturnArgs>(args?: Prisma.SelectSubset<T, VendorListCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VendorListPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+  createManyAndReturn<T extends vendorlistCreateManyAndReturnArgs>(args?: Prisma.SelectSubset<T, vendorlistCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$vendorlistPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
 
   /**
-   * Delete a VendorList.
-   * @param {VendorListDeleteArgs} args - Arguments to delete one VendorList.
+   * Delete a Vendorlist.
+   * @param {vendorlistDeleteArgs} args - Arguments to delete one Vendorlist.
    * @example
-   * // Delete one VendorList
-   * const VendorList = await prisma.vendorList.delete({
+   * // Delete one Vendorlist
+   * const Vendorlist = await prisma.vendorlist.delete({
    *   where: {
-   *     // ... filter to delete one VendorList
+   *     // ... filter to delete one Vendorlist
    *   }
    * })
    * 
    */
-  delete<T extends VendorListDeleteArgs>(args: Prisma.SelectSubset<T, VendorListDeleteArgs<ExtArgs>>): Prisma.Prisma__VendorListClient<runtime.Types.Result.GetResult<Prisma.$VendorListPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+  delete<T extends vendorlistDeleteArgs>(args: Prisma.SelectSubset<T, vendorlistDeleteArgs<ExtArgs>>): Prisma.Prisma__vendorlistClient<runtime.Types.Result.GetResult<Prisma.$vendorlistPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
   /**
-   * Update one VendorList.
-   * @param {VendorListUpdateArgs} args - Arguments to update one VendorList.
+   * Update one Vendorlist.
+   * @param {vendorlistUpdateArgs} args - Arguments to update one Vendorlist.
    * @example
-   * // Update one VendorList
-   * const vendorList = await prisma.vendorList.update({
+   * // Update one Vendorlist
+   * const vendorlist = await prisma.vendorlist.update({
    *   where: {
    *     // ... provide filter here
    *   },
@@ -566,30 +558,30 @@ export interface VendorListDelegate<ExtArgs extends runtime.Types.Extensions.Int
    * })
    * 
    */
-  update<T extends VendorListUpdateArgs>(args: Prisma.SelectSubset<T, VendorListUpdateArgs<ExtArgs>>): Prisma.Prisma__VendorListClient<runtime.Types.Result.GetResult<Prisma.$VendorListPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+  update<T extends vendorlistUpdateArgs>(args: Prisma.SelectSubset<T, vendorlistUpdateArgs<ExtArgs>>): Prisma.Prisma__vendorlistClient<runtime.Types.Result.GetResult<Prisma.$vendorlistPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
   /**
-   * Delete zero or more VendorLists.
-   * @param {VendorListDeleteManyArgs} args - Arguments to filter VendorLists to delete.
+   * Delete zero or more Vendorlists.
+   * @param {vendorlistDeleteManyArgs} args - Arguments to filter Vendorlists to delete.
    * @example
-   * // Delete a few VendorLists
-   * const { count } = await prisma.vendorList.deleteMany({
+   * // Delete a few Vendorlists
+   * const { count } = await prisma.vendorlist.deleteMany({
    *   where: {
    *     // ... provide filter here
    *   }
    * })
    * 
    */
-  deleteMany<T extends VendorListDeleteManyArgs>(args?: Prisma.SelectSubset<T, VendorListDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<Prisma.BatchPayload>
+  deleteMany<T extends vendorlistDeleteManyArgs>(args?: Prisma.SelectSubset<T, vendorlistDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<Prisma.BatchPayload>
 
   /**
-   * Update zero or more VendorLists.
+   * Update zero or more Vendorlists.
    * Note, that providing `undefined` is treated as the value not being there.
    * Read more here: https://pris.ly/d/null-undefined
-   * @param {VendorListUpdateManyArgs} args - Arguments to update one or more rows.
+   * @param {vendorlistUpdateManyArgs} args - Arguments to update one or more rows.
    * @example
-   * // Update many VendorLists
-   * const vendorList = await prisma.vendorList.updateMany({
+   * // Update many Vendorlists
+   * const vendorlist = await prisma.vendorlist.updateMany({
    *   where: {
    *     // ... provide filter here
    *   },
@@ -599,14 +591,14 @@ export interface VendorListDelegate<ExtArgs extends runtime.Types.Extensions.Int
    * })
    * 
    */
-  updateMany<T extends VendorListUpdateManyArgs>(args: Prisma.SelectSubset<T, VendorListUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<Prisma.BatchPayload>
+  updateMany<T extends vendorlistUpdateManyArgs>(args: Prisma.SelectSubset<T, vendorlistUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<Prisma.BatchPayload>
 
   /**
-   * Update zero or more VendorLists and returns the data updated in the database.
-   * @param {VendorListUpdateManyAndReturnArgs} args - Arguments to update many VendorLists.
+   * Update zero or more Vendorlists and returns the data updated in the database.
+   * @param {vendorlistUpdateManyAndReturnArgs} args - Arguments to update many Vendorlists.
    * @example
-   * // Update many VendorLists
-   * const vendorList = await prisma.vendorList.updateManyAndReturn({
+   * // Update many Vendorlists
+   * const vendorlist = await prisma.vendorlist.updateManyAndReturn({
    *   where: {
    *     // ... provide filter here
    *   },
@@ -615,8 +607,8 @@ export interface VendorListDelegate<ExtArgs extends runtime.Types.Extensions.Int
    *   ]
    * })
    * 
-   * // Update zero or more VendorLists and only return the `id`
-   * const vendorListWithIdOnly = await prisma.vendorList.updateManyAndReturn({
+   * // Update zero or more Vendorlists and only return the `id`
+   * const vendorlistWithIdOnly = await prisma.vendorlist.updateManyAndReturn({
    *   select: { id: true },
    *   where: {
    *     // ... provide filter here
@@ -629,56 +621,56 @@ export interface VendorListDelegate<ExtArgs extends runtime.Types.Extensions.Int
    * Read more here: https://pris.ly/d/null-undefined
    * 
    */
-  updateManyAndReturn<T extends VendorListUpdateManyAndReturnArgs>(args: Prisma.SelectSubset<T, VendorListUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VendorListPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+  updateManyAndReturn<T extends vendorlistUpdateManyAndReturnArgs>(args: Prisma.SelectSubset<T, vendorlistUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$vendorlistPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
 
   /**
-   * Create or update one VendorList.
-   * @param {VendorListUpsertArgs} args - Arguments to update or create a VendorList.
+   * Create or update one Vendorlist.
+   * @param {vendorlistUpsertArgs} args - Arguments to update or create a Vendorlist.
    * @example
-   * // Update or create a VendorList
-   * const vendorList = await prisma.vendorList.upsert({
+   * // Update or create a Vendorlist
+   * const vendorlist = await prisma.vendorlist.upsert({
    *   create: {
-   *     // ... data to create a VendorList
+   *     // ... data to create a Vendorlist
    *   },
    *   update: {
    *     // ... in case it already exists, update
    *   },
    *   where: {
-   *     // ... the filter for the VendorList we want to update
+   *     // ... the filter for the Vendorlist we want to update
    *   }
    * })
    */
-  upsert<T extends VendorListUpsertArgs>(args: Prisma.SelectSubset<T, VendorListUpsertArgs<ExtArgs>>): Prisma.Prisma__VendorListClient<runtime.Types.Result.GetResult<Prisma.$VendorListPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+  upsert<T extends vendorlistUpsertArgs>(args: Prisma.SelectSubset<T, vendorlistUpsertArgs<ExtArgs>>): Prisma.Prisma__vendorlistClient<runtime.Types.Result.GetResult<Prisma.$vendorlistPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
 
   /**
-   * Count the number of VendorLists.
+   * Count the number of Vendorlists.
    * Note, that providing `undefined` is treated as the value not being there.
    * Read more here: https://pris.ly/d/null-undefined
-   * @param {VendorListCountArgs} args - Arguments to filter VendorLists to count.
+   * @param {vendorlistCountArgs} args - Arguments to filter Vendorlists to count.
    * @example
-   * // Count the number of VendorLists
-   * const count = await prisma.vendorList.count({
+   * // Count the number of Vendorlists
+   * const count = await prisma.vendorlist.count({
    *   where: {
-   *     // ... the filter for the VendorLists we want to count
+   *     // ... the filter for the Vendorlists we want to count
    *   }
    * })
   **/
-  count<T extends VendorListCountArgs>(
-    args?: Prisma.Subset<T, VendorListCountArgs>,
+  count<T extends vendorlistCountArgs>(
+    args?: Prisma.Subset<T, vendorlistCountArgs>,
   ): Prisma.PrismaPromise<
     T extends runtime.Types.Utils.Record<'select', any>
       ? T['select'] extends true
         ? number
-        : Prisma.GetScalarType<T['select'], VendorListCountAggregateOutputType>
+        : Prisma.GetScalarType<T['select'], VendorlistCountAggregateOutputType>
       : number
   >
 
   /**
-   * Allows you to perform aggregations operations on a VendorList.
+   * Allows you to perform aggregations operations on a Vendorlist.
    * Note, that providing `undefined` is treated as the value not being there.
    * Read more here: https://pris.ly/d/null-undefined
-   * @param {VendorListAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+   * @param {VendorlistAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
    * @example
    * // Ordered by age ascending
    * // Where email contains prisma.io
@@ -698,13 +690,13 @@ export interface VendorListDelegate<ExtArgs extends runtime.Types.Extensions.Int
    *   take: 10,
    * })
   **/
-  aggregate<T extends VendorListAggregateArgs>(args: Prisma.Subset<T, VendorListAggregateArgs>): Prisma.PrismaPromise<GetVendorListAggregateType<T>>
+  aggregate<T extends VendorlistAggregateArgs>(args: Prisma.Subset<T, VendorlistAggregateArgs>): Prisma.PrismaPromise<GetVendorlistAggregateType<T>>
 
   /**
-   * Group by VendorList.
+   * Group by Vendorlist.
    * Note, that providing `undefined` is treated as the value not being there.
    * Read more here: https://pris.ly/d/null-undefined
-   * @param {VendorListGroupByArgs} args - Group by arguments.
+   * @param {vendorlistGroupByArgs} args - Group by arguments.
    * @example
    * // Group by city, order by createdAt, get count
    * const result = await prisma.user.groupBy({
@@ -719,14 +711,14 @@ export interface VendorListDelegate<ExtArgs extends runtime.Types.Extensions.Int
    * 
   **/
   groupBy<
-    T extends VendorListGroupByArgs,
+    T extends vendorlistGroupByArgs,
     HasSelectOrTake extends Prisma.Or<
       Prisma.Extends<'skip', Prisma.Keys<T>>,
       Prisma.Extends<'take', Prisma.Keys<T>>
     >,
     OrderByArg extends Prisma.True extends HasSelectOrTake
-      ? { orderBy: VendorListGroupByArgs['orderBy'] }
-      : { orderBy?: VendorListGroupByArgs['orderBy'] },
+      ? { orderBy: vendorlistGroupByArgs['orderBy'] }
+      : { orderBy?: vendorlistGroupByArgs['orderBy'] },
     OrderFields extends Prisma.ExcludeUnderscoreKeys<Prisma.Keys<Prisma.MaybeTupleToUnion<T['orderBy']>>>,
     ByFields extends Prisma.MaybeTupleToUnion<T['by']>,
     ByValid extends Prisma.Has<ByFields, OrderFields>,
@@ -775,20 +767,20 @@ export interface VendorListDelegate<ExtArgs extends runtime.Types.Extensions.Int
           ? never
           : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
       }[OrderFields]
-  >(args: Prisma.SubsetIntersection<T, VendorListGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetVendorListGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  >(args: Prisma.SubsetIntersection<T, vendorlistGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetVendorlistGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
 /**
- * Fields of the VendorList model
+ * Fields of the vendorlist model
  */
-readonly fields: VendorListFieldRefs;
+readonly fields: vendorlistFieldRefs;
 }
 
 /**
- * The delegate class that acts as a "Promise-like" for VendorList.
+ * The delegate class that acts as a "Promise-like" for vendorlist.
  * Why is this prefixed with `Prisma__`?
  * Because we want to prevent naming conflicts as mentioned in
  * https://github.com/prisma/prisma-client-js/issues/707
  */
-export interface Prisma__VendorListClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+export interface Prisma__vendorlistClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -816,374 +808,374 @@ export interface Prisma__VendorListClient<T, Null = never, ExtArgs extends runti
 
 
 /**
- * Fields of the VendorList model
+ * Fields of the vendorlist model
  */
-export interface VendorListFieldRefs {
-  readonly id: Prisma.FieldRef<"VendorList", 'Int'>
-  readonly name: Prisma.FieldRef<"VendorList", 'String'>
-  readonly latitude: Prisma.FieldRef<"VendorList", 'Float'>
-  readonly longitude: Prisma.FieldRef<"VendorList", 'Float'>
+export interface vendorlistFieldRefs {
+  readonly id: Prisma.FieldRef<"vendorlist", 'Int'>
+  readonly name: Prisma.FieldRef<"vendorlist", 'String'>
+  readonly latitude: Prisma.FieldRef<"vendorlist", 'Float'>
+  readonly longitude: Prisma.FieldRef<"vendorlist", 'Float'>
 }
     
 
 // Custom InputTypes
 /**
- * VendorList findUnique
+ * vendorlist findUnique
  */
-export type VendorListFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the VendorList
+   * Select specific fields to fetch from the vendorlist
    */
-  select?: Prisma.VendorListSelect<ExtArgs> | null
+  select?: Prisma.vendorlistSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the VendorList
+   * Omit specific fields from the vendorlist
    */
-  omit?: Prisma.VendorListOmit<ExtArgs> | null
+  omit?: Prisma.vendorlistOmit<ExtArgs> | null
   /**
-   * Filter, which VendorList to fetch.
+   * Filter, which vendorlist to fetch.
    */
-  where: Prisma.VendorListWhereUniqueInput
+  where: Prisma.vendorlistWhereUniqueInput
 }
 
 /**
- * VendorList findUniqueOrThrow
+ * vendorlist findUniqueOrThrow
  */
-export type VendorListFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the VendorList
+   * Select specific fields to fetch from the vendorlist
    */
-  select?: Prisma.VendorListSelect<ExtArgs> | null
+  select?: Prisma.vendorlistSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the VendorList
+   * Omit specific fields from the vendorlist
    */
-  omit?: Prisma.VendorListOmit<ExtArgs> | null
+  omit?: Prisma.vendorlistOmit<ExtArgs> | null
   /**
-   * Filter, which VendorList to fetch.
+   * Filter, which vendorlist to fetch.
    */
-  where: Prisma.VendorListWhereUniqueInput
+  where: Prisma.vendorlistWhereUniqueInput
 }
 
 /**
- * VendorList findFirst
+ * vendorlist findFirst
  */
-export type VendorListFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the VendorList
+   * Select specific fields to fetch from the vendorlist
    */
-  select?: Prisma.VendorListSelect<ExtArgs> | null
+  select?: Prisma.vendorlistSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the VendorList
+   * Omit specific fields from the vendorlist
    */
-  omit?: Prisma.VendorListOmit<ExtArgs> | null
+  omit?: Prisma.vendorlistOmit<ExtArgs> | null
   /**
-   * Filter, which VendorList to fetch.
+   * Filter, which vendorlist to fetch.
    */
-  where?: Prisma.VendorListWhereInput
+  where?: Prisma.vendorlistWhereInput
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
    * 
-   * Determine the order of VendorLists to fetch.
+   * Determine the order of vendorlists to fetch.
    */
-  orderBy?: Prisma.VendorListOrderByWithRelationInput | Prisma.VendorListOrderByWithRelationInput[]
+  orderBy?: Prisma.vendorlistOrderByWithRelationInput | Prisma.vendorlistOrderByWithRelationInput[]
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
    * 
-   * Sets the position for searching for VendorLists.
+   * Sets the position for searching for vendorlists.
    */
-  cursor?: Prisma.VendorListWhereUniqueInput
+  cursor?: Prisma.vendorlistWhereUniqueInput
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
    * 
-   * Take `±n` VendorLists from the position of the cursor.
+   * Take `±n` vendorlists from the position of the cursor.
    */
   take?: number
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
    * 
-   * Skip the first `n` VendorLists.
+   * Skip the first `n` vendorlists.
    */
   skip?: number
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
    * 
-   * Filter by unique combinations of VendorLists.
+   * Filter by unique combinations of vendorlists.
    */
-  distinct?: Prisma.VendorListScalarFieldEnum | Prisma.VendorListScalarFieldEnum[]
+  distinct?: Prisma.VendorlistScalarFieldEnum | Prisma.VendorlistScalarFieldEnum[]
 }
 
 /**
- * VendorList findFirstOrThrow
+ * vendorlist findFirstOrThrow
  */
-export type VendorListFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the VendorList
+   * Select specific fields to fetch from the vendorlist
    */
-  select?: Prisma.VendorListSelect<ExtArgs> | null
+  select?: Prisma.vendorlistSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the VendorList
+   * Omit specific fields from the vendorlist
    */
-  omit?: Prisma.VendorListOmit<ExtArgs> | null
+  omit?: Prisma.vendorlistOmit<ExtArgs> | null
   /**
-   * Filter, which VendorList to fetch.
+   * Filter, which vendorlist to fetch.
    */
-  where?: Prisma.VendorListWhereInput
+  where?: Prisma.vendorlistWhereInput
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
    * 
-   * Determine the order of VendorLists to fetch.
+   * Determine the order of vendorlists to fetch.
    */
-  orderBy?: Prisma.VendorListOrderByWithRelationInput | Prisma.VendorListOrderByWithRelationInput[]
+  orderBy?: Prisma.vendorlistOrderByWithRelationInput | Prisma.vendorlistOrderByWithRelationInput[]
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
    * 
-   * Sets the position for searching for VendorLists.
+   * Sets the position for searching for vendorlists.
    */
-  cursor?: Prisma.VendorListWhereUniqueInput
+  cursor?: Prisma.vendorlistWhereUniqueInput
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
    * 
-   * Take `±n` VendorLists from the position of the cursor.
+   * Take `±n` vendorlists from the position of the cursor.
    */
   take?: number
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
    * 
-   * Skip the first `n` VendorLists.
+   * Skip the first `n` vendorlists.
    */
   skip?: number
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
    * 
-   * Filter by unique combinations of VendorLists.
+   * Filter by unique combinations of vendorlists.
    */
-  distinct?: Prisma.VendorListScalarFieldEnum | Prisma.VendorListScalarFieldEnum[]
+  distinct?: Prisma.VendorlistScalarFieldEnum | Prisma.VendorlistScalarFieldEnum[]
 }
 
 /**
- * VendorList findMany
+ * vendorlist findMany
  */
-export type VendorListFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the VendorList
+   * Select specific fields to fetch from the vendorlist
    */
-  select?: Prisma.VendorListSelect<ExtArgs> | null
+  select?: Prisma.vendorlistSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the VendorList
+   * Omit specific fields from the vendorlist
    */
-  omit?: Prisma.VendorListOmit<ExtArgs> | null
+  omit?: Prisma.vendorlistOmit<ExtArgs> | null
   /**
-   * Filter, which VendorLists to fetch.
+   * Filter, which vendorlists to fetch.
    */
-  where?: Prisma.VendorListWhereInput
+  where?: Prisma.vendorlistWhereInput
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
    * 
-   * Determine the order of VendorLists to fetch.
+   * Determine the order of vendorlists to fetch.
    */
-  orderBy?: Prisma.VendorListOrderByWithRelationInput | Prisma.VendorListOrderByWithRelationInput[]
+  orderBy?: Prisma.vendorlistOrderByWithRelationInput | Prisma.vendorlistOrderByWithRelationInput[]
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
    * 
-   * Sets the position for listing VendorLists.
+   * Sets the position for listing vendorlists.
    */
-  cursor?: Prisma.VendorListWhereUniqueInput
+  cursor?: Prisma.vendorlistWhereUniqueInput
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
    * 
-   * Take `±n` VendorLists from the position of the cursor.
+   * Take `±n` vendorlists from the position of the cursor.
    */
   take?: number
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
    * 
-   * Skip the first `n` VendorLists.
+   * Skip the first `n` vendorlists.
    */
   skip?: number
-  distinct?: Prisma.VendorListScalarFieldEnum | Prisma.VendorListScalarFieldEnum[]
+  distinct?: Prisma.VendorlistScalarFieldEnum | Prisma.VendorlistScalarFieldEnum[]
 }
 
 /**
- * VendorList create
+ * vendorlist create
  */
-export type VendorListCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the VendorList
+   * Select specific fields to fetch from the vendorlist
    */
-  select?: Prisma.VendorListSelect<ExtArgs> | null
+  select?: Prisma.vendorlistSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the VendorList
+   * Omit specific fields from the vendorlist
    */
-  omit?: Prisma.VendorListOmit<ExtArgs> | null
+  omit?: Prisma.vendorlistOmit<ExtArgs> | null
   /**
-   * The data needed to create a VendorList.
+   * The data needed to create a vendorlist.
    */
-  data: Prisma.XOR<Prisma.VendorListCreateInput, Prisma.VendorListUncheckedCreateInput>
+  data: Prisma.XOR<Prisma.vendorlistCreateInput, Prisma.vendorlistUncheckedCreateInput>
 }
 
 /**
- * VendorList createMany
+ * vendorlist createMany
  */
-export type VendorListCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * The data used to create many VendorLists.
+   * The data used to create many vendorlists.
    */
-  data: Prisma.VendorListCreateManyInput | Prisma.VendorListCreateManyInput[]
+  data: Prisma.vendorlistCreateManyInput | Prisma.vendorlistCreateManyInput[]
   skipDuplicates?: boolean
 }
 
 /**
- * VendorList createManyAndReturn
+ * vendorlist createManyAndReturn
  */
-export type VendorListCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the VendorList
+   * Select specific fields to fetch from the vendorlist
    */
-  select?: Prisma.VendorListSelectCreateManyAndReturn<ExtArgs> | null
+  select?: Prisma.vendorlistSelectCreateManyAndReturn<ExtArgs> | null
   /**
-   * Omit specific fields from the VendorList
+   * Omit specific fields from the vendorlist
    */
-  omit?: Prisma.VendorListOmit<ExtArgs> | null
+  omit?: Prisma.vendorlistOmit<ExtArgs> | null
   /**
-   * The data used to create many VendorLists.
+   * The data used to create many vendorlists.
    */
-  data: Prisma.VendorListCreateManyInput | Prisma.VendorListCreateManyInput[]
+  data: Prisma.vendorlistCreateManyInput | Prisma.vendorlistCreateManyInput[]
   skipDuplicates?: boolean
 }
 
 /**
- * VendorList update
+ * vendorlist update
  */
-export type VendorListUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the VendorList
+   * Select specific fields to fetch from the vendorlist
    */
-  select?: Prisma.VendorListSelect<ExtArgs> | null
+  select?: Prisma.vendorlistSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the VendorList
+   * Omit specific fields from the vendorlist
    */
-  omit?: Prisma.VendorListOmit<ExtArgs> | null
+  omit?: Prisma.vendorlistOmit<ExtArgs> | null
   /**
-   * The data needed to update a VendorList.
+   * The data needed to update a vendorlist.
    */
-  data: Prisma.XOR<Prisma.VendorListUpdateInput, Prisma.VendorListUncheckedUpdateInput>
+  data: Prisma.XOR<Prisma.vendorlistUpdateInput, Prisma.vendorlistUncheckedUpdateInput>
   /**
-   * Choose, which VendorList to update.
+   * Choose, which vendorlist to update.
    */
-  where: Prisma.VendorListWhereUniqueInput
+  where: Prisma.vendorlistWhereUniqueInput
 }
 
 /**
- * VendorList updateMany
+ * vendorlist updateMany
  */
-export type VendorListUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * The data used to update VendorLists.
+   * The data used to update vendorlists.
    */
-  data: Prisma.XOR<Prisma.VendorListUpdateManyMutationInput, Prisma.VendorListUncheckedUpdateManyInput>
+  data: Prisma.XOR<Prisma.vendorlistUpdateManyMutationInput, Prisma.vendorlistUncheckedUpdateManyInput>
   /**
-   * Filter which VendorLists to update
+   * Filter which vendorlists to update
    */
-  where?: Prisma.VendorListWhereInput
+  where?: Prisma.vendorlistWhereInput
   /**
-   * Limit how many VendorLists to update.
+   * Limit how many vendorlists to update.
    */
   limit?: number
 }
 
 /**
- * VendorList updateManyAndReturn
+ * vendorlist updateManyAndReturn
  */
-export type VendorListUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the VendorList
+   * Select specific fields to fetch from the vendorlist
    */
-  select?: Prisma.VendorListSelectUpdateManyAndReturn<ExtArgs> | null
+  select?: Prisma.vendorlistSelectUpdateManyAndReturn<ExtArgs> | null
   /**
-   * Omit specific fields from the VendorList
+   * Omit specific fields from the vendorlist
    */
-  omit?: Prisma.VendorListOmit<ExtArgs> | null
+  omit?: Prisma.vendorlistOmit<ExtArgs> | null
   /**
-   * The data used to update VendorLists.
+   * The data used to update vendorlists.
    */
-  data: Prisma.XOR<Prisma.VendorListUpdateManyMutationInput, Prisma.VendorListUncheckedUpdateManyInput>
+  data: Prisma.XOR<Prisma.vendorlistUpdateManyMutationInput, Prisma.vendorlistUncheckedUpdateManyInput>
   /**
-   * Filter which VendorLists to update
+   * Filter which vendorlists to update
    */
-  where?: Prisma.VendorListWhereInput
+  where?: Prisma.vendorlistWhereInput
   /**
-   * Limit how many VendorLists to update.
+   * Limit how many vendorlists to update.
    */
   limit?: number
 }
 
 /**
- * VendorList upsert
+ * vendorlist upsert
  */
-export type VendorListUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the VendorList
+   * Select specific fields to fetch from the vendorlist
    */
-  select?: Prisma.VendorListSelect<ExtArgs> | null
+  select?: Prisma.vendorlistSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the VendorList
+   * Omit specific fields from the vendorlist
    */
-  omit?: Prisma.VendorListOmit<ExtArgs> | null
+  omit?: Prisma.vendorlistOmit<ExtArgs> | null
   /**
-   * The filter to search for the VendorList to update in case it exists.
+   * The filter to search for the vendorlist to update in case it exists.
    */
-  where: Prisma.VendorListWhereUniqueInput
+  where: Prisma.vendorlistWhereUniqueInput
   /**
-   * In case the VendorList found by the `where` argument doesn't exist, create a new VendorList with this data.
+   * In case the vendorlist found by the `where` argument doesn't exist, create a new vendorlist with this data.
    */
-  create: Prisma.XOR<Prisma.VendorListCreateInput, Prisma.VendorListUncheckedCreateInput>
+  create: Prisma.XOR<Prisma.vendorlistCreateInput, Prisma.vendorlistUncheckedCreateInput>
   /**
-   * In case the VendorList was found with the provided `where` argument, update it with this data.
+   * In case the vendorlist was found with the provided `where` argument, update it with this data.
    */
-  update: Prisma.XOR<Prisma.VendorListUpdateInput, Prisma.VendorListUncheckedUpdateInput>
+  update: Prisma.XOR<Prisma.vendorlistUpdateInput, Prisma.vendorlistUncheckedUpdateInput>
 }
 
 /**
- * VendorList delete
+ * vendorlist delete
  */
-export type VendorListDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the VendorList
+   * Select specific fields to fetch from the vendorlist
    */
-  select?: Prisma.VendorListSelect<ExtArgs> | null
+  select?: Prisma.vendorlistSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the VendorList
+   * Omit specific fields from the vendorlist
    */
-  omit?: Prisma.VendorListOmit<ExtArgs> | null
+  omit?: Prisma.vendorlistOmit<ExtArgs> | null
   /**
-   * Filter which VendorList to delete.
+   * Filter which vendorlist to delete.
    */
-  where: Prisma.VendorListWhereUniqueInput
+  where: Prisma.vendorlistWhereUniqueInput
 }
 
 /**
- * VendorList deleteMany
+ * vendorlist deleteMany
  */
-export type VendorListDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Filter which VendorLists to delete
+   * Filter which vendorlists to delete
    */
-  where?: Prisma.VendorListWhereInput
+  where?: Prisma.vendorlistWhereInput
   /**
-   * Limit how many VendorLists to delete.
+   * Limit how many vendorlists to delete.
    */
   limit?: number
 }
 
 /**
- * VendorList without action
+ * vendorlist without action
  */
-export type VendorListDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type vendorlistDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the VendorList
+   * Select specific fields to fetch from the vendorlist
    */
-  select?: Prisma.VendorListSelect<ExtArgs> | null
+  select?: Prisma.vendorlistSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the VendorList
+   * Omit specific fields from the vendorlist
    */
-  omit?: Prisma.VendorListOmit<ExtArgs> | null
+  omit?: Prisma.vendorlistOmit<ExtArgs> | null
 }

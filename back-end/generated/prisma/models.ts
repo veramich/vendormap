@@ -8,6 +8,6 @@
  *
  * 🟢 You can import this file directly.
  */
-export type * from './models/VendorList.js'
 export type * from './models/spatial_ref_sys.js'
+export type * from './models/vendorlist.js'
 export type * from './commonInputTypes.js'

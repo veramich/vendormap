@@ -51,8 +51,8 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
-  VendorList: 'VendorList',
-  spatial_ref_sys: 'spatial_ref_sys'
+  spatial_ref_sys: 'spatial_ref_sys',
+  vendorlist: 'vendorlist'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -61,24 +61,14 @@ export type ModelName = (typeof ModelName)[keyof typeof ModelName]
  * Enums
  */
 
-export const TransactionIsolationLevel = {
+export const TransactionIsolationLevel = runtime.makeStrictEnum({
   ReadUncommitted: 'ReadUncommitted',
   ReadCommitted: 'ReadCommitted',
   RepeatableRead: 'RepeatableRead',
   Serializable: 'Serializable'
-} as const
+} as const)
 
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
-
-
-export const VendorListScalarFieldEnum = {
-  id: 'id',
-  name: 'name',
-  latitude: 'latitude',
-  longitude: 'longitude'
-} as const
-
-export type VendorListScalarFieldEnum = (typeof VendorListScalarFieldEnum)[keyof typeof VendorListScalarFieldEnum]
 
 
 export const Spatial_ref_sysScalarFieldEnum = {
@@ -90,6 +80,16 @@ export const Spatial_ref_sysScalarFieldEnum = {
 } as const
 
 export type Spatial_ref_sysScalarFieldEnum = (typeof Spatial_ref_sysScalarFieldEnum)[keyof typeof Spatial_ref_sysScalarFieldEnum]
+
+
+export const VendorlistScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  latitude: 'latitude',
+  longitude: 'longitude'
+} as const
+
+export type VendorlistScalarFieldEnum = (typeof VendorlistScalarFieldEnum)[keyof typeof VendorlistScalarFieldEnum]
 
 
 export const SortOrder = {
