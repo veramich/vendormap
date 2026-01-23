@@ -41,6 +41,7 @@ export type VendorlistSumAggregateOutputType = {
 export type VendorlistMinAggregateOutputType = {
   id: number | null
   name: string | null
+  category: string | null
   latitude: number | null
   longitude: number | null
 }
@@ -48,6 +49,7 @@ export type VendorlistMinAggregateOutputType = {
 export type VendorlistMaxAggregateOutputType = {
   id: number | null
   name: string | null
+  category: string | null
   latitude: number | null
   longitude: number | null
 }
@@ -55,6 +57,7 @@ export type VendorlistMaxAggregateOutputType = {
 export type VendorlistCountAggregateOutputType = {
   id: number
   name: number
+  category: number
   latitude: number
   longitude: number
   _all: number
@@ -76,6 +79,7 @@ export type VendorlistSumAggregateInputType = {
 export type VendorlistMinAggregateInputType = {
   id?: true
   name?: true
+  category?: true
   latitude?: true
   longitude?: true
 }
@@ -83,6 +87,7 @@ export type VendorlistMinAggregateInputType = {
 export type VendorlistMaxAggregateInputType = {
   id?: true
   name?: true
+  category?: true
   latitude?: true
   longitude?: true
 }
@@ -90,6 +95,7 @@ export type VendorlistMaxAggregateInputType = {
 export type VendorlistCountAggregateInputType = {
   id?: true
   name?: true
+  category?: true
   latitude?: true
   longitude?: true
   _all?: true
@@ -184,6 +190,7 @@ export type vendorlistGroupByArgs<ExtArgs extends runtime.Types.Extensions.Inter
 export type VendorlistGroupByOutputType = {
   id: number
   name: string
+  category: string
   latitude: number
   longitude: number
   _count: VendorlistCountAggregateOutputType | null
@@ -214,6 +221,7 @@ export type vendorlistWhereInput = {
   NOT?: Prisma.vendorlistWhereInput | Prisma.vendorlistWhereInput[]
   id?: Prisma.IntFilter<"vendorlist"> | number
   name?: Prisma.StringFilter<"vendorlist"> | string
+  category?: Prisma.StringFilter<"vendorlist"> | string
   latitude?: Prisma.FloatFilter<"vendorlist"> | number
   longitude?: Prisma.FloatFilter<"vendorlist"> | number
 }
@@ -221,6 +229,7 @@ export type vendorlistWhereInput = {
 export type vendorlistOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  category?: Prisma.SortOrder
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
 }
@@ -231,6 +240,7 @@ export type vendorlistWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.vendorlistWhereInput[]
   NOT?: Prisma.vendorlistWhereInput | Prisma.vendorlistWhereInput[]
   name?: Prisma.StringFilter<"vendorlist"> | string
+  category?: Prisma.StringFilter<"vendorlist"> | string
   latitude?: Prisma.FloatFilter<"vendorlist"> | number
   longitude?: Prisma.FloatFilter<"vendorlist"> | number
 }, "id">
@@ -238,6 +248,7 @@ export type vendorlistWhereUniqueInput = Prisma.AtLeast<{
 export type vendorlistOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  category?: Prisma.SortOrder
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
   _count?: Prisma.vendorlistCountOrderByAggregateInput
@@ -253,12 +264,14 @@ export type vendorlistScalarWhereWithAggregatesInput = {
   NOT?: Prisma.vendorlistScalarWhereWithAggregatesInput | Prisma.vendorlistScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"vendorlist"> | number
   name?: Prisma.StringWithAggregatesFilter<"vendorlist"> | string
+  category?: Prisma.StringWithAggregatesFilter<"vendorlist"> | string
   latitude?: Prisma.FloatWithAggregatesFilter<"vendorlist"> | number
   longitude?: Prisma.FloatWithAggregatesFilter<"vendorlist"> | number
 }
 
 export type vendorlistCreateInput = {
   name: string
+  category?: string
   latitude: number
   longitude: number
 }
@@ -266,12 +279,14 @@ export type vendorlistCreateInput = {
 export type vendorlistUncheckedCreateInput = {
   id?: number
   name: string
+  category?: string
   latitude: number
   longitude: number
 }
 
 export type vendorlistUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  category?: Prisma.StringFieldUpdateOperationsInput | string
   latitude?: Prisma.FloatFieldUpdateOperationsInput | number
   longitude?: Prisma.FloatFieldUpdateOperationsInput | number
 }
@@ -279,6 +294,7 @@ export type vendorlistUpdateInput = {
 export type vendorlistUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  category?: Prisma.StringFieldUpdateOperationsInput | string
   latitude?: Prisma.FloatFieldUpdateOperationsInput | number
   longitude?: Prisma.FloatFieldUpdateOperationsInput | number
 }
@@ -286,12 +302,14 @@ export type vendorlistUncheckedUpdateInput = {
 export type vendorlistCreateManyInput = {
   id?: number
   name: string
+  category?: string
   latitude: number
   longitude: number
 }
 
 export type vendorlistUpdateManyMutationInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  category?: Prisma.StringFieldUpdateOperationsInput | string
   latitude?: Prisma.FloatFieldUpdateOperationsInput | number
   longitude?: Prisma.FloatFieldUpdateOperationsInput | number
 }
@@ -299,6 +317,7 @@ export type vendorlistUpdateManyMutationInput = {
 export type vendorlistUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  category?: Prisma.StringFieldUpdateOperationsInput | string
   latitude?: Prisma.FloatFieldUpdateOperationsInput | number
   longitude?: Prisma.FloatFieldUpdateOperationsInput | number
 }
@@ -306,6 +325,7 @@ export type vendorlistUncheckedUpdateManyInput = {
 export type vendorlistCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  category?: Prisma.SortOrder
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
 }
@@ -319,6 +339,7 @@ export type vendorlistAvgOrderByAggregateInput = {
 export type vendorlistMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  category?: Prisma.SortOrder
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
 }
@@ -326,6 +347,7 @@ export type vendorlistMaxOrderByAggregateInput = {
 export type vendorlistMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  category?: Prisma.SortOrder
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
 }
@@ -353,6 +375,7 @@ export type FloatFieldUpdateOperationsInput = {
 export type vendorlistSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
+  category?: boolean
   latitude?: boolean
   longitude?: boolean
 }, ExtArgs["result"]["vendorlist"]>
@@ -360,6 +383,7 @@ export type vendorlistSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
 export type vendorlistSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
+  category?: boolean
   latitude?: boolean
   longitude?: boolean
 }, ExtArgs["result"]["vendorlist"]>
@@ -367,6 +391,7 @@ export type vendorlistSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
 export type vendorlistSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
+  category?: boolean
   latitude?: boolean
   longitude?: boolean
 }, ExtArgs["result"]["vendorlist"]>
@@ -374,11 +399,12 @@ export type vendorlistSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
 export type vendorlistSelectScalar = {
   id?: boolean
   name?: boolean
+  category?: boolean
   latitude?: boolean
   longitude?: boolean
 }
 
-export type vendorlistOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "latitude" | "longitude", ExtArgs["result"]["vendorlist"]>
+export type vendorlistOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "category" | "latitude" | "longitude", ExtArgs["result"]["vendorlist"]>
 
 export type $vendorlistPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "vendorlist"
@@ -386,6 +412,7 @@ export type $vendorlistPayload<ExtArgs extends runtime.Types.Extensions.Internal
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     name: string
+    category: string
     latitude: number
     longitude: number
   }, ExtArgs["result"]["vendorlist"]>
@@ -813,6 +840,7 @@ export interface Prisma__vendorlistClient<T, Null = never, ExtArgs extends runti
 export interface vendorlistFieldRefs {
   readonly id: Prisma.FieldRef<"vendorlist", 'Int'>
   readonly name: Prisma.FieldRef<"vendorlist", 'String'>
+  readonly category: Prisma.FieldRef<"vendorlist", 'String'>
   readonly latitude: Prisma.FieldRef<"vendorlist", 'Float'>
   readonly longitude: Prisma.FieldRef<"vendorlist", 'Float'>
 }

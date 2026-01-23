@@ -7,6 +7,7 @@ interface Vendor {
   name: string;
   latitude: number;
   longitude: number;
+  category: string;
 }
 
 function HomePage() {
@@ -45,6 +46,7 @@ function HomePage() {
                     <Popup>
                         <div>
                             <h3>{vendor.name}</h3>
+                            <p>{vendor.category}</p>
                         </div>
                     </Popup>
                 </Marker>

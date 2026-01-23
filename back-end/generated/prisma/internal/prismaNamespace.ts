@@ -606,6 +606,7 @@ export type Spatial_ref_sysScalarFieldEnum = (typeof Spatial_ref_sysScalarFieldE
 export const VendorlistScalarFieldEnum = {
   id: 'id',
   name: 'name',
+  category: 'category',
   latitude: 'latitude',
   longitude: 'longitude'
 } as const

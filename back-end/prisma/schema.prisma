@@ -22,9 +22,11 @@ model spatial_ref_sys {
 model vendorlist {
   id        Int                      @id @default(autoincrement())
   name      String                   @db.VarChar(100)
-  latitude  Float @db.DoublePrecision
-  longitude Float @db.DoublePrecision
+  category  String                   @db.VarChar(10) @default("coffee") 
+  latitude  Float
+  longitude Float
   location  Unsupported("geometry")?
+  
 
   @@map("vendorlist")
   @@schema("vendors")
