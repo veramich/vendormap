@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import 'dotenv/config';
 import { Pool } from 'pg';
 
 const pool = new Pool({
@@ -9,13 +10,22 @@ const pool = new Pool({
     }
 });
 
-const port = process.env.PORT || 8000;
-
 const app = express();
 
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors({ origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173' }));
 app.use(express.json());
 
+app.get('/', (req, res) => {
+  res.send('Hello, World!');
+});
+
+app.get('/api/businesses', (req, res) => {
+  const sample = [
+    { id: 1, name: 'Coffee Corner' },
+    { id: 2, name: 'Baker Street Bakery' }
+  ];
+  res.json(sample);
+});
 app.get('/', async (req, res) =>{
   try {
     const result = await pool.query('SELECT name FROM vendormap.businesses LIMIT 1');
@@ -40,6 +50,8 @@ app.post('/', (req, res) => {
   const { name, location } = req.body;
   res.send(`Received data: Name - ${name}, Location - ${location}`);
 });
+
+const port = process.env.PORT || 8000;
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
