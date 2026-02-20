@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import { useState, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
+import { useNavigate, Link } from 'react-router-dom';
 import L from 'leaflet';
 import "leaflet/dist/leaflet.css";
 
@@ -56,37 +57,66 @@ interface BusinessLocation {
   category_color: string;
 }
 
+interface PendingLocation {
+  lat: number;
+  lng: number;
+}
+
+function MapClickHandler({
+  enabled,
+  onSelect,
+}: {
+  enabled: boolean;
+  onSelect: (location: PendingLocation) => void;
+}) {
+  useMapEvents({
+    click(event) {
+      if (!enabled) return;
+      onSelect({ lat: event.latlng.lat, lng: event.latlng.lng });
+    },
+  });
+
+  return null;
+}
+
 
 export default function HomePage({
-    defaultCenter = [33.978371, -118.225212],
-    defaultZoom = 13,
-    onBusinessClick,
+  defaultCenter = [33.978371, -118.225212],
+  defaultZoom = 13,
 }: {
-    defaultCenter?: [number, number];
-    defaultZoom?: number;
-    onBusinessClick?: (businessId: string) => void;
+  defaultCenter?: [number, number];
+  defaultZoom?: number;
 }) {
-    const [locations, setLocations] = useState<BusinessLocation[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const [locations, setLocations] = useState<BusinessLocation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isAddMode, setIsAddMode] = useState(false);
+  const [pendingLocation, setPendingLocation] = useState<PendingLocation | null>(null);
+  const pendingMarkerRef = useRef<L.Marker | null>(null);
 
-   useEffect(() => {
-    fetch("/api/locations")
-      .then((r) => {
-        if (!r.ok) throw new Error(`Server error: ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
-        console.log("Loaded locations:", data);
-        setLocations(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load map locations:", err);
-        setError(`Could not load locations: ${err.message}`);
-        setLoading(false);
-      });
+  useEffect(() => {
+  fetch("/api/locations")
+    .then((r) => {
+      if (!r.ok) throw new Error(`Server error: ${r.status}`);
+      return r.json();
+    })
+    .then((data) => {
+      console.log("Loaded locations:", data);
+      setLocations(data);
+      setLoading(false);
+    })
+    .catch((err) => {
+      console.error("Failed to load map locations:", err);
+      setError(`Could not load locations: ${err.message}`);
+      setLoading(false);
+    });
   }, []);
+
+  useEffect(() => {
+    if (!pendingLocation || !pendingMarkerRef.current) return;
+    pendingMarkerRef.current.openPopup();
+  }, [pendingLocation]);
 
     const mapCenter: [number, number] = locations.length > 0
     ? [
@@ -95,21 +125,58 @@ export default function HomePage({
       ]
     : defaultCenter;
 
+    function startAddMode() {
+      setIsAddMode(true);
+      setPendingLocation(null);
+    }
+
+    function stopAddMode() {
+      setIsAddMode(false);
+      setPendingLocation(null);
+    }
+
+    function handleMapPick(location: PendingLocation) {
+      setPendingLocation(location);
+    }
+
+    function handleConfirmAddBusiness() {
+      if (!pendingLocation) return;
+      const params = new URLSearchParams({
+        lat: pendingLocation.lat.toFixed(6),
+        lng: pendingLocation.lng.toFixed(6),
+      });
+      navigate(`/add-business?${params.toString()}`);
+    }
+
     return (
-        <>
+      <>
+        {!isAddMode ? (
+          <>
+            <button type="button" onClick={startAddMode}>
+              Add Business
+            </button>
+          </>
+          ) : (
+            <>
+              <p>
+                Click on the map to place a temporary marker.
+              </p>
+              <button type="button" onClick={stopAddMode}>
+                Exit add mode
+              </button>
+            </>
+          )}
+
+        <div style={{ height: "72vh", width: "100%" }}>
         <MapContainer center={mapCenter} zoom={locations.length > 0 ? defaultZoom : defaultZoom - 1}
           style={{ height: "100%", width: "100%" }}
           scrollWheelZoom={true}>
+            <MapClickHandler enabled={isAddMode} onSelect={handleMapPick} />
             <TileLayer                
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 url='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
                 subdomains = 'abcd'
             />                     
-            <Marker position={[33.94242805157514, -118.21347281355553]}>
-                <Popup>
-                    <h3>Headquarters</h3>
-                </Popup>
-            </Marker>
             {locations.map((loc) => (
                 <Marker
                 key={loc.location_id}
@@ -118,59 +185,62 @@ export default function HomePage({
                 >
                 <Popup>
                     <div style={{ padding: "12px 14px" }}>
-                    {/* Business name */}
-                    <h3>
-                        {loc.business_name}
-                    </h3>
-
-                    {/* Location name if multi-location */}
-                    {loc.location_name && (
-                        <p>
-                        {loc.location_name}
-                        </p>
-                    )}
-
-                    {/* Address */}
+                    <h3>{loc.business_name}</h3>
+                    <p>{loc.location_name}</p>
                     <p>
-                        📍 {loc.cross_street_1} & {loc.cross_street_2}<br />
-                        {loc.city}, {loc.state}, {loc.zip_code}
+                      📍 {loc.cross_street_1} & {loc.cross_street_2}<br />
+                      {loc.city}, {loc.state}, {loc.zip_code}
                     </p>
-
-                    {/* Phone */}
-                    {loc.phone && (
-                        <p>
-                        📞 {loc.phone}
-                        </p>
-                    )}
-
-                    {/* View Details button */}
-                    {onBusinessClick && (
-                        <button
-                        onClick={() => onBusinessClick(loc.business_id)}
-                        >
-                        View Details →
-                        </button>
-                    )}
+                    <p> 📞 {loc.phone}</p>
+                    <Link to={`/locations/${loc.location_id}`}>View Details →</Link>
                     </div>
                 </Popup>
                 </Marker>
             ))}
+
+            {pendingLocation && (
+              <Marker
+                ref={pendingMarkerRef}
+                position={[pendingLocation.lat, pendingLocation.lng]}
+              >
+                <Popup>
+                  <div style={{ minWidth: "210px" }}>
+                    <h3 style={{ marginBottom: "8px" }}>Add business here?</h3>
+                    <p style={{ marginBottom: "8px", fontSize: "14px" }}>
+                      Lat: {pendingLocation.lat.toFixed(6)}<br />
+                      Lng: {pendingLocation.lng.toFixed(6)}
+                    </p>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button type="button" onClick={handleConfirmAddBusiness}>
+                        Add business here
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingLocation(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
             
         </MapContainer>
+
+        </div>
         {!loading && !error && locations.length > 0 && (
           <div>
             📍 {locations.length} location{locations.length !== 1 ? "s" : ""}
           </div>
         )}
 
-        {/* Error state */}
         {error && (
             <div style={{ padding: "16px", background: "#fee", color: "#c33", borderRadius: "8px", margin: "16px" }}>
                 <strong>Error:</strong> {error}
             </div>
         )}
 
-        {/* Empty state */}
         {!loading && !error && locations.length === 0 && (
             <div>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
@@ -181,5 +251,4 @@ export default function HomePage({
         )}
         </>
     );
-
 }

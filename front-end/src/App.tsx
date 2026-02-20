@@ -7,6 +7,8 @@ import BusinessPage from '../pages/BusinessPage';
 import UserProfile from '../pages/UserProfile';
 import Layout from './Layout';
 import NotFoundPage from '../pages/NotFoundPage';
+import LoginPage from '../pages/LoginPage';
+import CreateAccountPage from '../pages/CreateAccountPage'; 
 
 const routes = [{
   path: '/',
@@ -22,11 +24,17 @@ const routes = [{
     path: '/add-business',
     element: <AddBusiness />
   },{
-    path: '/businesses/:id',
+    path: '/locations/:id',
     element: <BusinessPage /> 
   },{
     path: '/profile',
     element: <UserProfile />
+  },{
+    path: '/login',
+    element: <LoginPage />
+  },{
+    path: '/create-account',
+    element: <CreateAccountPage />
   }]
 }]
 

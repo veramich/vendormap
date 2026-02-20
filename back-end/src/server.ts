@@ -1,8 +1,16 @@
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
-import pool from "./db.js";
 import businessesRoutes from "./businesses.routes.js";
+import admin from 'firebase-admin';
+import fs from 'fs'
+
+const credentials = JSON.parse(
+  fs.readFileSync('./credentials.json', 'utf-8')
+)
+admin.initializeApp({
+  credential: admin.credential.cert(credentials)
+});
 
 const app = express();
 
@@ -11,31 +19,6 @@ app.use(
 );
 app.use(express.json());
 app.use("/api", businessesRoutes);
-
-app.get('/', async (req, res) =>{
-  try {
-    const result = await pool.query('SELECT name FROM vendormap.businesses LIMIT 5');
-    res.send(result.rows[0].name);    
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server error');
-  } 
-});
-
-app.get('/api/businesses', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT id, name FROM vendormap.businesses');
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Error fetching businesses:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.post('/', (req, res) => {
-  const { name, location } = req.body;
-  res.send(`Received data: Name - ${name}, Location - ${location}`);
-});
 
 const port = process.env.PORT || 8000;
 
