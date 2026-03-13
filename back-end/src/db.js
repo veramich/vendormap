@@ -6,4 +6,8 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: true }
 });
 
+pool.on('error', (err) => {
+  console.error('Unexpected DB pool error:', err);
+});
+
 export default pool;

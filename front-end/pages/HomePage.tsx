@@ -125,6 +125,7 @@ export default function HomePage({
   
   // Map state
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [radiusMiles, setRadiusMiles] = useState(5);
   const [zipCenter, setZipCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [zipGeocoding, setZipGeocoding] = useState(false);
@@ -246,6 +247,20 @@ export default function HomePage({
       setFlyTarget({ lat: Number(viewLat), lng: Number(viewLng) });
     }
   }, [viewLat, viewLng]);
+
+  // Center map on user's location on first load
+  useEffect(() => {
+    if (viewLat && viewLng) return; // don't override URL-based navigation
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setFlyTarget(coords);
+        setUserLocation(coords);
+      },
+      () => {} // silently ignore denial or errors
+    );
+  }, []);
 
   const categoryOptions = useMemo(() => {
     const seen = new Set<string>();
@@ -456,6 +471,20 @@ export default function HomePage({
               subdomains = 'abcd'
             />
             <MapNavigator flyTarget={flyTarget} />
+            {userLocation && (
+              <Marker
+                position={[userLocation.lat, userLocation.lng]}
+                icon={L.divIcon({
+                  className: '',
+                  html: '<div style="width:14px;height:14px;background:#4285F4;border:2px solid #fff;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>',
+                  iconSize: [14, 14],
+                  iconAnchor: [7, 7],
+                })}
+                zIndexOffset={1000}
+              >
+                <Popup>You are here</Popup>
+              </Marker>
+            )}
                                
             <MarkerClusterGroup chunkedLoading disableClusteringAtZoom={14}>
             {filteredLocations.map((loc) => {
