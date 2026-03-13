@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { toStringArray, normalize, isZipCode, haversineMiles, MapsChooser } from '../src/utils';
+import { DAY_OPTIONS, RADIUS_OPTIONS } from '../src/constants';
 
 interface BusinessRow {
 	id: string;
@@ -12,6 +14,12 @@ interface BusinessRow {
 	amenities?: string[] | string | null;
 }
 
+interface CategoryRow {
+	id: string;
+	name: string;
+	icon?: string | null;
+}
+
 interface LocationRow {
 	location_id: string;
 	business_id: string;
@@ -22,6 +30,8 @@ interface LocationRow {
 	zip_code?: string | number | null;
 	latitude?: number | null;
 	longitude?: number | null;
+	cross_street_1?: string | null;
+	cross_street_2?: string | null;
 }
 
 interface BusinessListItem {
@@ -30,80 +40,23 @@ interface BusinessListItem {
 	locationId: string | null;
 	photoUrls: string[];
 	categories: string[];
+	categoryIcon: string | null;
 	daysOpen: string[];
 	keywords: string[];
 	amenities: string[];
 	city: string;
 	state: string;
 	zipCode: string;
+	crossStreet1: string;
+	crossStreet2: string;
 	latitude: number | null;
 	longitude: number | null;
 }
 
-const DAY_OPTIONS = [
-	"Monday",
-	"Tuesday",
-	"Wednesday",
-	"Thursday",
-	"Friday",
-	"Saturday",
-	"Sunday",
-];
-
-const RADIUS_OPTIONS = [1, 5, 10, 25];
-
-function toStringArray(value: unknown): string[] {
-	if (Array.isArray(value)) {
-		return value
-			.filter((item): item is string => typeof item === "string")
-			.map((item) => item.trim())
-			.filter(Boolean);
-	}
-
-	if (typeof value === "string") {
-		const trimmed = value.trim();
-		if (!trimmed) return [];
-
-		if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-			try {
-				const parsed = JSON.parse(trimmed);
-				if (Array.isArray(parsed)) {
-					return parsed
-						.filter((item): item is string => typeof item === "string")
-						.map((item) => item.trim())
-						.filter(Boolean);
-				}
-			} catch {
-			}
-		}
-
-		return trimmed
-			.split(/,|\||\//)
-			.map((part) => part.trim())
-			.filter(Boolean);
-	}
-
-	return [];
-}
-
-function normalize(text: string): string {
-	return text.trim().toLowerCase();
-}
-
-function isZipCode(value: string): boolean {
-	return /^\d{5}$/.test(value.trim());
-}
-
-function haversineMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
-	const R = 3958.8;
-	const dLat = ((lat2 - lat1) * Math.PI) / 180;
-	const dLng = ((lng2 - lng1) * Math.PI) / 180;
-	const a =
-		Math.sin(dLat / 2) ** 2 +
-		Math.cos((lat1 * Math.PI) / 180) *
-			Math.cos((lat2 * Math.PI) / 180) *
-			Math.sin(dLng / 2) ** 2;
-	return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+function getFallbackCategoryIcon(categories: string[]): string {
+	if (!categories.length) return '/icon-transparent.png';
+	const categoryName = categories[0].toLowerCase().trim();
+	return `/${categoryName}.png`;
 }
 
 export default function BusinessesList() {
@@ -129,19 +82,28 @@ export default function BusinessesList() {
 				setLoading(true);
 				setError(null);
 
-				const [businessesResponse, locationsResponse] = await Promise.all([
+				const [businessesResponse, locationsResponse, categoriesResponse] = await Promise.all([
 					fetch("/api/businesses"),
 					fetch("/api/locations"),
+					fetch("/api/categories"),
 				]);
 
-				if (!businessesResponse.ok || !locationsResponse.ok) {
+				if (!businessesResponse.ok || !locationsResponse.ok || !categoriesResponse.ok) {
 					throw new Error(
-						`Server error: ${businessesResponse.status}/${locationsResponse.status}`
+						`Server error: ${businessesResponse.status}/${locationsResponse.status}/${categoriesResponse.status}`
 					);
 				}
 
 				const businessRows = (await businessesResponse.json()) as BusinessRow[];
 				const locationRows = (await locationsResponse.json()) as LocationRow[];
+				const categoryRows = (await categoriesResponse.json()) as CategoryRow[];
+
+				const categoryIconMap = new Map<string, string>();
+				categoryRows.forEach((category) => {
+					if (category.icon) {
+						categoryIconMap.set(category.name.toLowerCase().trim(), category.icon);
+					}
+				});
 
 				const byId = new Map<string, BusinessListItem>();
 
@@ -153,18 +115,25 @@ export default function BusinessesList() {
 						photoUrls.unshift(normalizedLogo);
 					}
 
+					const categoryIcon = categories.length > 0
+						? categoryIconMap.get(categories[0].toLowerCase().trim()) || null
+						: null;
+
 					byId.set(row.id, {
 						id: row.id,
 						name: row.name,
 						locationId: null,
 						photoUrls,
 						categories,
+						categoryIcon,
 						daysOpen: toStringArray(row.days_open),
 						keywords: toStringArray(row.keywords),
 						amenities: toStringArray(row.amenities),
 						city: "",
 						state: "",
 						zipCode: "",
+						crossStreet1: "",
+						crossStreet2: "",
 						latitude: null,
 						longitude: null,
 					});
@@ -173,18 +142,26 @@ export default function BusinessesList() {
 				locationRows.forEach((row) => {
 					const existing = byId.get(row.business_id);
 					if (!existing) {
+						const categories = row.category_name ? [row.category_name] : [];
+						const categoryIcon = categories.length > 0
+							? categoryIconMap.get(categories[0].toLowerCase().trim()) || null
+							: null;
+
 						byId.set(row.business_id, {
 							id: row.business_id,
 							name: row.business_name,
 							locationId: row.location_id,
 							photoUrls: [],
-							categories: row.category_name ? [row.category_name] : [],
+							categories,
+							categoryIcon,
 							daysOpen: [],
 							keywords: [],
 							amenities: [],
 							city: row.city?.trim() ?? "",
 							state: row.state?.trim() ?? "",
 							zipCode: row.zip_code != null ? String(row.zip_code).trim() : "",
+							crossStreet1: row.cross_street_1?.trim() ?? "",
+							crossStreet2: row.cross_street_2?.trim() ?? "",
 							latitude: row.latitude ?? null,
 							longitude: row.longitude ?? null,
 						});
@@ -204,6 +181,12 @@ export default function BusinessesList() {
 						existing.latitude = row.latitude;
 						existing.longitude = row.longitude ?? null;
 					}
+					if (!existing.crossStreet1 && row.cross_street_1) {
+						existing.crossStreet1 = row.cross_street_1.trim();
+					}
+					if (!existing.crossStreet2 && row.cross_street_2) {
+						existing.crossStreet2 = row.cross_street_2.trim();
+					}
 
 					if (
 						row.category_name &&
@@ -212,6 +195,9 @@ export default function BusinessesList() {
 						)
 					) {
 						existing.categories.push(row.category_name);
+						if (!existing.categoryIcon) {
+							existing.categoryIcon = categoryIconMap.get(row.category_name.toLowerCase().trim()) || null;
+						}
 					}
 				});
 
@@ -244,7 +230,6 @@ export default function BusinessesList() {
 		};
 	}, []);
 
-	// Geocode zip codes automatically as the user types
 	useEffect(() => {
 		const q = locationQuery.trim();
 		if (!isZipCode(q)) {
@@ -307,6 +292,7 @@ export default function BusinessesList() {
 		const location = normalize(locationQuery);
 		const category = normalize(selectedCategory);
 		const day = normalize(selectedDay);
+		const amenity = normalize(selectedAmenity);
 
 		return businesses.filter((business) => {
 			const normalizedName = normalize(business.name);
@@ -325,7 +311,6 @@ export default function BusinessesList() {
 			let matchesLocation = true;
 			if (location) {
 				if (isZipCode(location) && zipCenter) {
-					// Radius filter: only include businesses with known coordinates within range
 					if (business.latitude != null && business.longitude != null) {
 						const dist = haversineMiles(
 							zipCenter.lat,
@@ -335,7 +320,6 @@ export default function BusinessesList() {
 						);
 						matchesLocation = dist <= radiusMiles;
 					} else {
-						// No coordinates — fall back to zip string match
 						matchesLocation = normalize(business.zipCode).includes(location);
 					}
 				} else if (!isZipCode(location)) {
@@ -343,7 +327,6 @@ export default function BusinessesList() {
 						normalize(business.city).includes(location) ||
 						normalize(business.state).includes(location);
 				}
-				// If it looks like a zip but hasn't geocoded yet, skip filter (show all)
 			}
 
 			const matchesCategory = !category || normalizedCategories.includes(category);
@@ -354,26 +337,23 @@ export default function BusinessesList() {
 					(openDay) => openDay === day || openDay.startsWith(day.slice(0, 3))
 				);
 
-			const amenity = normalize(selectedAmenity);
-		const matchesAmenity = !amenity || business.amenities.some((a) => normalize(a) === amenity);
+			const matchesAmenity = !amenity || normalizedAmenities.some((a) => a === amenity);
 
-		return matchesSearch && matchesLocation && matchesCategory && matchesDay && matchesAmenity;
+			return matchesSearch && matchesLocation && matchesCategory && matchesDay && matchesAmenity;
 		});
 	}, [businesses, searchQuery, locationQuery, zipCenter, radiusMiles, selectedCategory, selectedDay, selectedAmenity]);
 
 	const showingZipRadius = isZipCode(locationQuery.trim()) && zipCenter != null;
 
 	return (
-		<main className="businesses-list-main">
-			<h1 className="businesses-list-title">Business Directory</h1>
-			<div>
+		<main>
+			<div className="search-container">
 				<input
 					type="text"
 					value={searchQuery}
 					onChange={(event) => setSearchQuery(event.target.value)}
 					placeholder="Search by name, keywords, or amenities"
 					aria-label="Search businesses by name, keywords, or amenities"
-					className="businesses-list-search-input"
 				/>
 				<input
 					type="text"
@@ -381,19 +361,16 @@ export default function BusinessesList() {
 					onChange={(event) => setLocationQuery(event.target.value)}
 					placeholder="City, state, or zip code"
 					aria-label="Filter by city, state, or zip code"
-					className="businesses-list-search-input"
 				/>
 
 				<button
 					type="button"
 					onClick={() => setShowFilters((previous) => !previous)}
 					aria-label="Toggle filters"
-					className="businesses-list-filter-button"
 				>
 					<svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true">
 						<path d="M1 2h12L8 7v4l-2 1V7L1 2z" fill="currentColor" />
 					</svg>
-					Filters
 				</button>
 			</div>
 
@@ -516,34 +493,53 @@ export default function BusinessesList() {
 											)}
 										</div>
 									) : (
-										<div
-											aria-hidden="true"
-											className="business-card-placeholder"
-										>
-											🏪
+										<div className="business-card-photos">
+											<div className="business-card-photo-grid">
+												<img
+													src={business.categoryIcon || getFallbackCategoryIcon(business.categories)}
+													alt={`${business.categories.join(", ") || 'Business'} category icon`}
+													loading="lazy"
+													className="business-card-photo business-card-category-icon"
+													onError={(event) => {
+														if (event.currentTarget.src !== '/icon-transparent.png') {
+															event.currentTarget.src = '/icon-transparent.png';
+														}
+													}}
+												/>
+											</div>
 										</div>
 									)}
-									<h3 className="business-card-title">{business.name}</h3>
-									<p className="business-card-category">
-										Category: {business.categories.join(", ") || "Not listed"}
-									</p>
-									{(business.city || business.state) && (
-										<p className="business-card-location">
-											📍 {[business.city, business.state].filter(Boolean).join(", ")}
-											{business.zipCode ? ` ${business.zipCode}` : ""}
+									<div className="business-card-content">
+										<h3 className="business-card-title">{business.name}</h3>
+										<p className="business-card-category">
+											{business.categories.join(", ") || "Not listed"}
 										</p>
-									)}
-									<p className="business-card-days">
-										Days open: {business.daysOpen.join(", ") || "Not listed"}
-									</p>
-									<p className="business-card-keywords">
-										Keywords: {business.keywords.join(", ") || "Not listed"}
-									</p>
-									{business.locationId ? (
-										<Link to={`/locations/${business.locationId}`}>View details</Link>
-									) : (
-										<span>Location unavailable</span>
-									)}
+										{(business.city || business.state) && (
+											<p className="business-card-location">
+												{(business.crossStreet1 || business.crossStreet2) && (
+													<span>
+														{[business.crossStreet1, business.crossStreet2]
+															.filter(Boolean)
+															.join(" & ")}
+													</span>
+												)}
+												<br /> {[business.city, business.state].filter(Boolean).join(", ")}
+												{business.zipCode ? ` ${business.zipCode}` : ""}
+											</p>
+										)}
+										<div className="business-card-actions">
+											{business.locationId ? (
+												<Link to={`/locations/${business.locationId}`}>View details</Link>
+											) : (
+												<span>Location unavailable</span>
+											)}
+											{business.latitude != null && business.longitude != null && (
+												<MapsChooser lat={business.latitude} lng={business.longitude} query={business.name}>
+													Open in Maps →
+												</MapsChooser>
+											)}
+										</div>
+									</div>
 								</article>
 							))}
 						</div>

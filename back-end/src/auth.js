@@ -24,10 +24,7 @@ export async function requireToken(req, res, next) {
     next();
   } catch (err) {
     console.error('Firebase auth error:', err);
-    return res.status(401).json({
-      error: 'Invalid authentication token',
-      details: err.message,
-    });
+    return res.status(401).json({ error: 'Invalid authentication token' });
   }
 }
 

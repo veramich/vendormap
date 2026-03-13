@@ -1,0 +1,28 @@
+{
+  "name": "VendorMap",
+  "short_name": "VendorMap",
+  "description": "A map of local street vendors and home vendors open to the public.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#ff7300",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-orange.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-orange.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-transparent.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

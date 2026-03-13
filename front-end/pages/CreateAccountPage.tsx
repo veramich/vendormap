@@ -23,26 +23,31 @@ export default function CreateAccountPage() {
     }
 
     return (
-        <>
-            <h1>Create Account</h1>
-            {error && <p>{error}</p>}
-            <input
-                type='email'
-                placeholder='Your email'
-                value={email}
-                onChange={e => setEmail(e.target.value)}/>
-            <input 
-                placeholder='Your password' 
-                type='password' 
-                value={password}
-                onChange={e => setPassword(e.target.value)}/>
-            <input 
-                placeholder='Confirm your password' 
-                type='password' 
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}/>
-            <button onClick={createAccount}>Create Account</button>
-            <Link to='/login'>Already have an account? Log in here.</Link>
-        </>
+        <div className="auth-page">
+            <div className="auth-card">
+                <h1>Create Account</h1>
+                {error && <p className="error-message">{error}</p>}
+                <input
+                    type='email'
+                    placeholder='Your email'
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                />
+                <input
+                    placeholder='Your password'
+                    type='password'
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                />
+                <input
+                    placeholder='Confirm your password'
+                    type='password'
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                />
+                <button type="submit" onClick={createAccount}>Create Account</button>
+                <Link to='/login'>Already have an account? Log in here.</Link>
+            </div>
+        </div>
     );
 }

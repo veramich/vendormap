@@ -1,18 +1,45 @@
 import express from "express";
 import pool from "./db.js";
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import { requireToken, requireAuth, requireAdmin } from './auth.js';
-import { geocodeIntersection, snapToNearestIntersection, isWithinUSBoundaries } from './geocode.js';
+import { geocodeIntersection, geocodeIntersectionWithCityLookup } from './geocode.js';
 import { uploadFile } from './storage.js';
 
 const router = express.Router();
 const REVIEW_FALLBACK_ERROR = 'Please reword your review. Something seems to give an error.';
 
-// Configure multer for handling business submission form data
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit per file
+const geocodeLimiter = rateLimit({
+  windowMs: 60 * 1000, 
+  max: 30,           
+  message: { error: 'Too many requests, please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
+
+const writeLimiter = rateLimit({
+  windowMs: 60 * 1000, 
+  max: 10,             
+  message: { error: 'Too many requests, please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+// Configure multer for handling business submission form data
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit per file
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_IMAGE_MIMES.has(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files (JPEG, PNG, WebP, GIF) are allowed'));
+    }
+  },
+});
+
 
 router.get("/locations", async (req, res) => {
   try {
@@ -50,7 +77,6 @@ router.get("/locations", async (req, res) => {
       ORDER BY b.name
     `);
 
-    console.log(`Found ${result.rows.length} locations`);
     res.json(result.rows);
   } catch (err) {
     console.error("GET /api/locations error:", err);
@@ -69,64 +95,77 @@ router.get("/categories", async (req, res) => {
   }
 });
 
-// Geocode intersection (cross streets + city + state) to lat/lon via Nominatim
-router.get("/geocode", async (req, res) => {
+router.get("/geocode", geocodeLimiter, async (req, res) => {
   try {
-    const { cross_street_1, cross_street_2, city, state } = req.query;
-    if (!cross_street_1 || !cross_street_2 || !city || !state) {
+    const { cross_street_1, cross_street_2, city, state, zip } = req.query;
+    if (!cross_street_1 || !cross_street_2 || !state) {
       return res.status(400).json({
-        error: "Query params required: cross_street_1, cross_street_2, city, state",
+        error: "Query params required: cross_street_1, cross_street_2, state",
       });
     }
-    const coords = await geocodeIntersection(
-      String(cross_street_1),
-      String(cross_street_2),
-      String(city),
-      String(state)
-    );
+    const coords = city
+      ? await geocodeIntersection(String(cross_street_1), String(cross_street_2), String(city), String(state), zip ? String(zip) : null)
+      : await geocodeIntersectionWithCityLookup(String(cross_street_1), String(cross_street_2), String(state), zip ? String(zip) : null);
     if (!coords) {
       return res.status(404).json({
         error: "Could not find coordinates for this address",
       });
     }
-    res.json({ latitude: coords.lat, longitude: coords.lon });
+    res.json({ latitude: coords.lat, longitude: coords.lon, ...(coords.city ? { city: coords.city } : {}), ...(coords.zip ? { zip: coords.zip } : {}), ...(coords.approximate ? { approximate: true } : {}) });
   } catch (err) {
     console.error("GET /geocode error:", err);
     res.status(500).json({ error: "Geocoding failed" });
   }
 });
 
-// Snap a map click to the nearest intersection (for privacy: pin shows intersection only unless owner chooses exact)
-router.post("/snap-to-intersection", async (req, res) => {
+router.get("/ratings", async (req, res) => {
   try {
-    const { latitude, longitude } = req.body;
-    const lat = parseFloat(latitude);
-    const lon = parseFloat(longitude);
-    if (Number.isNaN(lat) || Number.isNaN(lon)) {
-      return res.status(400).json({ error: "latitude and longitude are required" });
-    }
-    if (!isWithinUSBoundaries(lat, lon)) {
-      return res.status(400).json({ error: "Coordinates must be within US boundaries" });
-    }
-    const snapped = await snapToNearestIntersection(lat, lon);
-    if (!snapped) {
-      return res.status(404).json({
-        error: "No intersection found near this point. Try another spot or enter the address manually.",
-      });
-    }
-    res.json({
-      latitude: snapped.lat,
-      longitude: snapped.lon,
-      original_latitude: lat,
-      original_longitude: lon,
-      snap_distance_meters: snapped.snap_distance_meters,
-      geocode_source: "map_snap",
-    });
+    const result = await pool.query(`
+      SELECT 
+        bl.business_id,
+        COALESCE(ROUND(AVG(r.rating)::numeric, 1), 0) AS average_rating,
+        COUNT(r.id)::int AS review_count
+      FROM vendormap.business_locations bl
+      LEFT JOIN vendormap.reviews r ON r.location_id = bl.id
+      WHERE bl.is_active = true
+      GROUP BY bl.business_id
+      HAVING COUNT(r.id) > 0
+      ORDER BY bl.business_id
+    `);
+
+    res.json(result.rows);
   } catch (err) {
-    console.error("POST /snap-to-intersection error:", err);
-    res.status(500).json({ error: "Snap to intersection failed" });
+    console.error("GET /api/ratings error:", err);
+    res.status(500).json({ error: "Failed to load ratings data" });
   }
 });
+
+router.get("/location-search", geocodeLimiter, async (req, res) => {
+  try {
+    const q = String(req.query.q || "").trim();
+    if (!q) return res.status(400).json({ error: "Query param 'q' is required" });
+
+    const url = `${process.env.NOMINATIM_URL}/search?q=${encodeURIComponent(q)}&format=json&limit=5&countrycodes=us`;
+    const response = await fetch(url, {
+      headers: { "User-Agent": process.env.NOMINATIM_USER_AGENT },
+    });
+    if (!response.ok) return res.status(502).json({ error: "Geocoding service unavailable" });
+
+    const data = await response.json();
+    const results = data
+      .map((place) => ({
+        display_name: place.display_name,
+        latitude: parseFloat(place.lat),
+        longitude: parseFloat(place.lon),
+      }))
+
+    res.json(results);
+  } catch (err) {
+    console.error("GET /location-search error:", err);
+    res.status(500).json({ error: "Location search failed" });
+  }
+});
+
 
 router.get("/businesses", async (req, res) => {
   try {
@@ -146,7 +185,8 @@ router.get("/businesses", async (req, res) => {
             NULL
           ),
           ARRAY[]::text[]
-        ) AS photo_urls
+        ) AS photo_urls,
+        (ARRAY_AGG(bl.business_hours ORDER BY bl.id) FILTER (WHERE bl.business_hours IS NOT NULL))[1] AS business_hours
       FROM vendormap.businesses b
       LEFT JOIN vendormap.categories c
         ON c.id = b.category_id
@@ -155,6 +195,7 @@ router.get("/businesses", async (req, res) => {
         AND bl.is_active = true
       LEFT JOIN vendormap.location_photos lp
         ON lp.location_id = bl.id
+        AND lp.moderation_status = 'approved'
       WHERE b.is_active = true
         AND b.moderation_status = 'approved'
       GROUP BY b.id, b.name, b.logo_url, b.keywords, b.amenities, c.name
@@ -164,25 +205,6 @@ router.get("/businesses", async (req, res) => {
   } catch (err) {
     console.error('Error fetching businesses:', err);
     res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Validate if coordinates are within US boundaries
-router.get("/locations/validate-location", (req, res) => {
-  try {
-    const { lat, lng } = req.query;
-    const latitude = parseFloat(lat);
-    const longitude = parseFloat(lng);
-    
-    if (isNaN(latitude) || isNaN(longitude)) {
-      return res.status(400).json({ error: "Invalid coordinates" });
-    }
-    
-    const isValid = isWithinUSBoundaries(latitude, longitude);
-    res.json({ valid: isValid });
-  } catch (err) {
-    console.error("GET /locations/validate-location error:", err);
-    res.status(500).json({ error: "Failed to validate location" });
   }
 });
 
@@ -199,6 +221,7 @@ router.get("/locations/:id", async (req, res) => {
           b.websites,
           b.email,
           b.logo_url,
+          b.icon,
           b.keywords,
           b.amenities,
           b.is_chain,
@@ -223,6 +246,9 @@ router.get("/locations/:id", async (req, res) => {
           bl.country,
           bl.zip_code,
           bl.neighborhood,
+          bl.always_open,
+          bl.weekly_hours_on_website,
+          bl.subject_to_change,
           bl.business_hours,
           bl.notes,
           bl.latitude,
@@ -255,6 +281,7 @@ router.get("/locations/:id", async (req, res) => {
           ON c.id = b.category_id
         LEFT JOIN vendormap.location_photos lp
           ON lp.location_id = bl.id
+          AND lp.moderation_status = 'approved'
         WHERE bl.id = $1
           AND bl.is_active = true
         GROUP BY b.id, c.id, bl.id
@@ -276,6 +303,7 @@ router.get("/locations/:id", async (req, res) => {
       websites: row.websites,
       email: row.email,
       logo_url: row.logo_url,
+      icon: row.icon,
       keywords: row.keywords,
       is_chain: row.is_chain,
       parent_company: row.parent_company,
@@ -301,6 +329,9 @@ router.get("/locations/:id", async (req, res) => {
           country: row.country,
           zip_code: row.zip_code,
           neighborhood: row.neighborhood,
+          always_open: row.always_open,
+          weekly_hours_on_website: row.weekly_hours_on_website,
+          subject_to_change: row.subject_to_change,
           business_hours: row.business_hours,
           notes: row.notes,
           amenities: row.amenities,
@@ -334,6 +365,7 @@ router.get('/businesses/:id', async (req, res) => {
           b.websites,
           b.email,
           b.logo_url,
+          b.icon,
           b.keywords,
           b.amenities,
           b.is_chain,
@@ -375,6 +407,9 @@ router.get('/businesses/:id', async (req, res) => {
           bl.country,
           bl.zip_code,
           bl.neighborhood,
+          bl.always_open,
+          bl.weekly_hours_on_website,
+          bl.subject_to_change,
           bl.business_hours,
           bl.notes,
           bl.latitude,
@@ -401,6 +436,7 @@ router.get('/businesses/:id', async (req, res) => {
         FROM vendormap.business_locations bl
         LEFT JOIN vendormap.location_photos lp
           ON lp.location_id = bl.id
+          AND lp.moderation_status = 'approved'
         WHERE bl.business_id = $1
           AND bl.is_active = true
         GROUP BY bl.id
@@ -471,41 +507,13 @@ router.get('/locations/:locationId/reviews', async (req, res) => {
   }
 });
 
-router.get('/profile/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
 
-    const userResult = await pool.query(
-      `
-        SELECT id, username, full_name, email, firebase_uid, created_at, updated_at
-        FROM vendormap.users
-        WHERE id = $1
-        LIMIT 1
-      `,
-      [userId]
-    );
-
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json(userResult.rows[0]);
-  } catch (err) {
-    console.error('Error fetching user profile:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-router.post('/businesses', ...requireAuth, upload.fields([
+router.post('/businesses', writeLimiter, ...requireAuth, upload.fields([
   { name: 'logo', maxCount: 1 },
   { name: 'location_images', maxCount: 20 }
 ]), async (req, res) => {
   try {
     const dbUserId = req.auth.dbUser.id;
-
-    // Debug logging
-    console.log('Request body:', req.body);
-    console.log('Files:', req.files);
 
     // Parse business data from form
     if (!req.body.business) {
@@ -520,15 +528,13 @@ router.post('/businesses', ...requireAuth, upload.fields([
       return res.status(400).json({ error: 'Invalid business data format' });
     }
 
-    // Handle logo upload
     let logoUrl = null;
     if (req.files?.logo?.[0]) {
       logoUrl = await uploadFile(req.files.logo[0], 'business_logos');
     }
 
-    // Process location images for later insertion
+    // Process location images
     const locationImages = req.files?.location_images || [];
-    console.log(`Received ${locationImages.length} location images`);
     const {
       name,
       category_id,
@@ -562,8 +568,8 @@ router.post('/businesses', ...requireAuth, upload.fields([
     ];
 
     for (const location of locations) {
-      if (!location.cross_street_1 || !location.cross_street_2 || !location.city || !location.state) {
-        return res.status(400).json({ error: 'All location fields (cross streets, city, state) are required' });
+      if (!location.cross_street_1 || !location.cross_street_2 || !location.state) {
+        return res.status(400).json({ error: 'Cross streets and state are required' });
       }
 
       if (!usStates.includes(location.state)) {
@@ -580,28 +586,15 @@ router.post('/businesses', ...requireAuth, upload.fields([
         );
         if (!coords) {
           return res.status(400).json({
-            error: `Could not find coordinates for "${location.cross_street_1} & ${location.cross_street_2}, ${location.city}, ${location.state}". Check the address or try selecting a location on the map.`,
+            error: `Could not find coordinates for "${location.cross_street_1} & ${location.cross_street_2}, ${location.city}, ${location.state}". Please double-check the cross streets, city, and state.`,
           });
         }
         location.latitude = coords.lat;
         location.longitude = coords.lon;
         location.geocode_source = location.geocode_source || "nominatim";
-        location.location_snapped = location.location_snapped ?? false;
-        location.original_latitude = location.original_latitude ?? null;
-        location.original_longitude = location.original_longitude ?? null;
-        location.snap_distance_meters = location.snap_distance_meters ?? null;
       } else {
         location.geocode_source = location.geocode_source ?? null;
-        location.location_snapped = location.location_snapped ?? false;
-        location.original_latitude = location.original_latitude ?? null;
-        location.original_longitude = location.original_longitude ?? null;
-        location.snap_distance_meters = location.snap_distance_meters ?? null;
-      }
 
-      if (!isWithinUSBoundaries(location.latitude, location.longitude)) {
-        return res.status(400).json({
-          error: 'Business location must be within United States boundaries. Please select a location on the US map or correct the address.',
-        });
       }
     }
 
@@ -639,9 +632,9 @@ router.post('/businesses', ...requireAuth, upload.fields([
           INSERT INTO vendormap.business_locations (
             business_id, location_name, cross_street_1, cross_street_2,
             city, state, latitude, longitude, phones, location_privacy,
-            business_hours, is_active,
-            geocode_source, location_snapped, original_latitude, original_longitude, snap_distance_meters
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, false, $12, $13, $14, $15, $16)
+            always_open, weekly_hours_on_website, subject_to_change,
+            business_hours, is_active, geocode_source
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, false, $15)
           RETURNING id
         `, [
           businessId,
@@ -654,12 +647,11 @@ router.post('/businesses', ...requireAuth, upload.fields([
           location.longitude,
           location.phones || [],
           location.location_privacy || 'intersection',
+          location.always_open || false,
+          location.weekly_hours_on_website || false,
+          location.subject_to_change || false,
           JSON.stringify(location.business_hours),
           location.geocode_source ?? null,
-          location.location_snapped ?? false,
-          location.original_latitude ?? null,
-          location.original_longitude ?? null,
-          location.snap_distance_meters ?? null,
         ]);
 
         const locationId = locationResult.rows[0].id;
@@ -708,7 +700,6 @@ router.post('/businesses', ...requireAuth, upload.fields([
   }
 });
 
-// Admin-only endpoints
 router.get('/admin/check-role', ...requireAuth, requireAdmin, async (req, res) => {
   try {
     res.json({
@@ -723,12 +714,8 @@ router.get('/admin/check-role', ...requireAuth, requireAdmin, async (req, res) =
 
 router.get('/admin/pending-businesses', ...requireAuth, requireAdmin, async (req, res) => {
   try {
-    console.log('Admin pending-businesses endpoint called');
-
-    // Fetch pending businesses with their locations
     let pendingResult;
     try {
-      console.log('Executing pending businesses query...');
       pendingResult = await pool.query(`
         SELECT 
           b.id,
@@ -753,7 +740,6 @@ router.get('/admin/pending-businesses', ...requireAuth, requireAdmin, async (req
         WHERE b.moderation_status = 'pending' AND (b.is_active = true OR b.is_active IS NULL)
         ORDER BY b.created_at ASC
       `);
-      console.log('Pending businesses query successful:', pendingResult.rows.length, 'rows');
     } catch (queryError) {
       console.error('Error in pending businesses query:', queryError);
       throw queryError;
@@ -763,12 +749,9 @@ router.get('/admin/pending-businesses', ...requireAuth, requireAdmin, async (req
     const businessIds = pendingResult.rows.map(row => row.id);
     let locations = [];
     let locationPhotos = [];
-    
-    console.log('Business IDs to fetch locations for:', businessIds);
-    
+
     if (businessIds.length > 0) {
       try {
-        console.log('Fetching locations...');
         const locationsResult = await pool.query(`
           SELECT 
             business_id,
@@ -784,25 +767,23 @@ router.get('/admin/pending-businesses', ...requireAuth, requireAdmin, async (req
             original_longitude,
             location_privacy,
             geocode_source,
-            location_snapped,
-            snap_distance_meters,
             phones,
-            business_hours
+            business_hours,
+            always_open,
+            weekly_hours_on_website,
+            subject_to_change
           FROM vendormap.business_locations
           WHERE business_id = ANY($1::uuid[])
           ORDER BY business_id, id
         `, [businessIds]);
         
         locations = locationsResult.rows;
-        console.log('Locations fetched:', locations.length);
         
         // Fetch location photos
         const locationIds = locations.map(loc => loc.id);
-        console.log('Location IDs to fetch photos for:', locationIds);
         
         if (locationIds.length > 0) {
           try {
-            console.log('Fetching location photos...');
             const photosResult = await pool.query(`
               SELECT 
                 location_id,
@@ -818,10 +799,8 @@ router.get('/admin/pending-businesses', ...requireAuth, requireAdmin, async (req
             `, [locationIds]);
             
             locationPhotos = photosResult.rows;
-            console.log('Location photos fetched:', locationPhotos.length);
           } catch (photosError) {
             console.error('Error fetching location photos:', photosError);
-            // Continue without photos instead of failing
             locationPhotos = [];
           }
         }
@@ -832,7 +811,6 @@ router.get('/admin/pending-businesses', ...requireAuth, requireAdmin, async (req
     }
 
     // Group locations and photos by business_id
-    console.log('Grouping data...');
     try {
       const businessesWithLocations = pendingResult.rows.map(business => ({
         ...business,
@@ -851,7 +829,6 @@ router.get('/admin/pending-businesses', ...requireAuth, requireAdmin, async (req
           }))
       }));
 
-      console.log('Final data prepared, sending response with', businessesWithLocations.length, 'businesses');
       res.json(businessesWithLocations);
     } catch (mappingError) {
       console.error('Error mapping business data:', mappingError);
@@ -859,8 +836,7 @@ router.get('/admin/pending-businesses', ...requireAuth, requireAdmin, async (req
     }
   } catch (err) {
     console.error('Error fetching pending businesses:', err);
-    const message = err?.message || 'Server error';
-    res.status(500).json({ error: 'Server error', details: message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -944,7 +920,344 @@ router.post('/admin/businesses/:id/reject', ...requireAuth, requireAdmin, async 
   }
 });
 
-// User profile endpoints (current user by Firebase token)
+// Business claim routes
+router.post('/businesses/:id/claim', ...requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dbUserId = req.auth.dbUser.id;
+
+    const bizResult = await pool.query(
+      `SELECT id, if_verified FROM vendormap.businesses WHERE id = $1 AND moderation_status = 'approved'`,
+      [id]
+    );
+    if (bizResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Business not found.' });
+    }
+    if (bizResult.rows[0].if_verified) {
+      return res.status(409).json({ error: 'This business already has a verified owner.' });
+    }
+
+    await pool.query(
+      `UPDATE vendormap.businesses SET claim_pending = true, claim_user_id = $2 WHERE id = $1`,
+      [id, dbUserId]
+    );
+
+    res.json({ message: 'Claim submitted successfully.' });
+  } catch (err) {
+    console.error('POST /businesses/:id/claim error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/admin/pending-claims', ...requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name AS business_name, email, websites
+      FROM vendormap.businesses
+      WHERE claim_pending = true AND if_verified = false AND moderation_status = 'approved'
+      ORDER BY updated_at ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('GET /admin/pending-claims error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/admin/businesses/:id/verify', ...requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `UPDATE vendormap.businesses SET if_verified = true, claim_pending = false, verified_owner_id = claim_user_id WHERE id = $1 RETURNING id`,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Business not found.' });
+    }
+    res.json({ message: 'Business verified.' });
+  } catch (err) {
+    console.error('POST /admin/businesses/:id/verify error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/admin/businesses/:id/dismiss-claim', ...requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `UPDATE vendormap.businesses SET claim_pending = false WHERE id = $1 RETURNING id`,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Business not found.' });
+    }
+    res.json({ message: 'Claim dismissed.' });
+  } catch (err) {
+    console.error('POST /admin/businesses/:id/dismiss-claim error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Business edit routes
+router.get('/businesses/:id/edit-data', ...requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dbUserId = req.auth.dbUser.id;
+
+    const bizResult = await pool.query(
+      `SELECT id, name, category_id, description, websites, email, keywords, amenities,
+              is_chain, logo_url, verified_owner_id, moderation_status
+       FROM vendormap.businesses
+       WHERE id = $1 AND moderation_status = 'approved' AND is_active = true`,
+      [id]
+    );
+    if (bizResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Business not found.' });
+    }
+    const biz = bizResult.rows[0];
+
+    const locResult = await pool.query(
+      `SELECT id AS location_id, location_name, cross_street_1, cross_street_2, city, state,
+              latitude, longitude, phones, location_privacy,
+              always_open, weekly_hours_on_website, subject_to_change,
+              business_hours, is_primary
+       FROM vendormap.business_locations
+       WHERE business_id = $1 AND is_active = true
+       ORDER BY is_primary DESC NULLS LAST, id ASC`,
+      [id]
+    );
+
+    const locIds = locResult.rows.map(l => l.location_id);
+    let photosByLocation = {};
+    if (locIds.length > 0) {
+      const photoResult = await pool.query(
+        `SELECT id, location_id, photo_url, thumbnail_url, caption, display_order, is_primary, uploaded_by, moderation_status
+         FROM vendormap.location_photos
+         WHERE location_id = ANY($1::uuid[])
+           AND (moderation_status = 'approved' OR uploaded_by = $2)
+         ORDER BY location_id, is_primary DESC, display_order ASC`,
+        [locIds, dbUserId]
+      );
+      for (const photo of photoResult.rows) {
+        if (!photosByLocation[photo.location_id]) photosByLocation[photo.location_id] = [];
+        photosByLocation[photo.location_id].push(photo);
+      }
+    }
+
+    res.json({
+      ...biz,
+      locations: locResult.rows.map(loc => ({
+        ...loc,
+        photos: photosByLocation[loc.location_id] || [],
+      })),
+      isVerifiedOwner: biz.verified_owner_id === dbUserId,
+    });
+  } catch (err) {
+    console.error('GET /businesses/:id/edit-data error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.put('/businesses/:id', ...requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dbUserId = req.auth.dbUser.id;
+    const { businessEdits, locationEdits } = req.body;
+
+    const bizResult = await pool.query(
+      `SELECT id, verified_owner_id FROM vendormap.businesses WHERE id = $1 AND moderation_status = 'approved'`,
+      [id]
+    );
+    if (bizResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Business not found.' });
+    }
+    const isVerifiedOwner = bizResult.rows[0].verified_owner_id === dbUserId;
+
+    const addressFields = ['cross_street_1', 'cross_street_2', 'city', 'state'];
+    const hasAddressChanges = (locationEdits || []).some(loc =>
+      addressFields.some(f => loc[f] !== undefined)
+    );
+    if (hasAddressChanges && !isVerifiedOwner) {
+      return res.status(403).json({ error: 'Only the verified owner can edit address information.' });
+    }
+
+    await pool.query('BEGIN');
+    try {
+      if (businessEdits && Object.keys(businessEdits).length > 0) {
+        await pool.query(
+          `UPDATE vendormap.businesses SET edit_pending = true, pending_edits = $1, updated_at = NOW() WHERE id = $2`,
+          [JSON.stringify(businessEdits), id]
+        );
+      }
+
+      for (const locEdit of (locationEdits || [])) {
+        const { location_id, ...changes } = locEdit;
+        if (addressFields.some(f => changes[f] !== undefined)) {
+          const locRow = await pool.query(
+            `SELECT cross_street_1, cross_street_2, city, state FROM vendormap.business_locations WHERE id = $1`,
+            [location_id]
+          );
+          if (locRow.rows.length > 0) {
+            const cur = locRow.rows[0];
+            const cs1 = changes.cross_street_1 || cur.cross_street_1;
+            const cs2 = changes.cross_street_2 || cur.cross_street_2;
+            const city = changes.city || cur.city;
+            const state = changes.state || cur.state;
+            try {
+              const coords = await geocodeIntersection(cs1, cs2, city, state);
+              if (coords) {
+                changes.latitude = coords.lat;
+                changes.longitude = coords.lon;
+                changes.geocode_source = 'geocode_edit';
+              }
+            } catch (_) {}
+          }
+        }
+        await pool.query(
+          `UPDATE vendormap.business_locations SET edit_pending = true, pending_edits = $1 WHERE id = $2 AND business_id = $3`,
+          [JSON.stringify(changes), location_id, id]
+        );
+      }
+
+      await pool.query('COMMIT');
+      res.json({ message: 'Edit submitted for review.' });
+    } catch (err) {
+      await pool.query('ROLLBACK');
+      throw err;
+    }
+  } catch (err) {
+    console.error('PUT /businesses/:id error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/admin/pending-edits', ...requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        b.id, b.name AS business_name, b.pending_edits AS business_edits,
+        b.name AS current_name, b.description AS current_description,
+        b.websites AS current_websites, b.email AS current_email,
+        b.keywords AS current_keywords, b.amenities AS current_amenities,
+        COALESCE(json_agg(
+          json_build_object(
+            'location_id', l.id,
+            'location_name', l.location_name,
+            'pending_edits', l.pending_edits,
+            'current', json_build_object(
+              'cross_street_1', l.cross_street_1,
+              'cross_street_2', l.cross_street_2,
+              'city', l.city,
+              'state', l.state,
+              'phones', l.phones,
+              'location_privacy', l.location_privacy
+            )
+          )
+        ) FILTER (WHERE l.id IS NOT NULL), '[]') AS location_edits
+      FROM vendormap.businesses b
+      LEFT JOIN vendormap.business_locations l
+        ON l.business_id = b.id AND l.edit_pending = true
+      WHERE b.edit_pending = true
+      GROUP BY b.id, b.name, b.pending_edits, b.description, b.websites, b.email, b.keywords, b.amenities
+      ORDER BY b.updated_at ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('GET /admin/pending-edits error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/admin/businesses/:id/approve-edit', ...requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await pool.query('BEGIN');
+    try {
+      const bizResult = await pool.query(
+        `SELECT pending_edits FROM vendormap.businesses WHERE id = $1 AND edit_pending = true`,
+        [id]
+      );
+      if (bizResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ error: 'No pending edit found.' });
+      }
+
+      const pendingEdits = bizResult.rows[0].pending_edits || {};
+      const allowedBizFields = ['name', 'category_id', 'description', 'websites', 'email', 'keywords', 'amenities', 'is_chain'];
+      const bizEntries = Object.entries(pendingEdits).filter(([k]) => allowedBizFields.includes(k));
+      if (bizEntries.length > 0) {
+        const setClause = bizEntries.map(([k], i) => `${k} = $${i + 2}`).join(', ');
+        await pool.query(
+          `UPDATE vendormap.businesses SET ${setClause}, edit_pending = false, pending_edits = NULL, updated_at = NOW() WHERE id = $1`,
+          [id, ...bizEntries.map(([, v]) => v)]
+        );
+      } else {
+        await pool.query(
+          `UPDATE vendormap.businesses SET edit_pending = false, pending_edits = NULL WHERE id = $1`,
+          [id]
+        );
+      }
+
+      const allowedLocFields = ['location_name', 'cross_street_1', 'cross_street_2', 'city', 'state',
+        'latitude', 'longitude', 'phones', 'location_privacy',
+        'always_open', 'weekly_hours_on_website', 'subject_to_change',
+        'business_hours', 'geocode_source'];
+      const locRows = await pool.query(
+        `SELECT id, pending_edits FROM vendormap.business_locations WHERE business_id = $1 AND edit_pending = true`,
+        [id]
+      );
+      for (const loc of locRows.rows) {
+        const locEdits = loc.pending_edits || {};
+        const locEntries = Object.entries(locEdits).filter(([k]) => allowedLocFields.includes(k));
+        if (locEntries.length > 0) {
+          const setClause = locEntries.map(([k], i) => `${k} = $${i + 2}`).join(', ');
+          await pool.query(
+            `UPDATE vendormap.business_locations SET ${setClause}, edit_pending = false, pending_edits = NULL, updated_at = NOW() WHERE id = $1`,
+            [loc.id, ...locEntries.map(([, v]) => v)]
+          );
+        } else {
+          await pool.query(
+            `UPDATE vendormap.business_locations SET edit_pending = false, pending_edits = NULL WHERE id = $1`,
+            [loc.id]
+          );
+        }
+      }
+
+      await pool.query('COMMIT');
+      res.json({ message: 'Edit approved and applied.' });
+    } catch (err) {
+      await pool.query('ROLLBACK');
+      throw err;
+    }
+  } catch (err) {
+    console.error('POST /admin/businesses/:id/approve-edit error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/admin/businesses/:id/reject-edit', ...requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `UPDATE vendormap.businesses SET edit_pending = false, pending_edits = NULL WHERE id = $1 RETURNING id`,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Business not found.' });
+    }
+    await pool.query(
+      `UPDATE vendormap.business_locations SET edit_pending = false, pending_edits = NULL WHERE business_id = $1`,
+      [id]
+    );
+    res.json({ message: 'Edit rejected.' });
+  } catch (err) {
+    console.error('POST /admin/businesses/:id/reject-edit error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// User profile endpoints
 router.get('/user/profile', ...requireAuth, async (req, res) => {
   try {
     const userResult = await pool.query(`
@@ -1036,98 +1349,6 @@ router.put('/user/profile', ...requireAuth, async (req, res) => {
   }
 });
 
-// User profile by database ID (for /users/:userId routes; :userId is DB id)
-router.get('/users/:userId', ...requireAuth, async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const currentUserId = String(req.auth.dbUser.id);
-    const currentUserRole = req.auth.dbUser.role;
-    const isSelf = currentUserId === userId;
-    const isAdmin = currentUserRole === 'admin';
-    if (!isSelf && !isAdmin) {
-      return res.status(403).json({ error: 'Not allowed to view this profile' });
-    }
-    const userResult = await pool.query(`
-      SELECT id, username, email, full_name, avatar_url, bio,
-        is_active, last_login, banned_at, suspended_until,
-        created_at, updated_at, firebase_uid, role
-      FROM vendormap.users
-      WHERE id = $1
-    `, [userId]);
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    const profile = userResult.rows[0];
-    if (isSelf) {
-      profile.last_login = new Date().toISOString();
-      await pool.query(
-        'UPDATE vendormap.users SET last_login = NOW() WHERE id = $1',
-        [userId]
-      );
-    }
-    res.json(profile);
-  } catch (err) {
-    console.error('Error fetching user by id:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-router.put('/users/:userId', ...requireAuth, async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { username, full_name, bio, avatar_url } = req.body;
-    const currentUserId = String(req.auth.dbUser.id);
-    const currentUserRole = req.auth.dbUser.role;
-    const isSelf = currentUserId === userId;
-    const isAdmin = currentUserRole === 'admin';
-    if (!isSelf && !isAdmin) {
-      return res.status(403).json({ error: 'Not allowed to edit this profile' });
-    }
-    if (!username || username.trim().length < 2) {
-      return res.status(400).json({ error: 'Username must be at least 2 characters long' });
-    }
-    if (username.trim().length > 50) {
-      return res.status(400).json({ error: 'Username must be 50 characters or less' });
-    }
-    if (full_name && full_name.length > 70) {
-      return res.status(400).json({ error: 'Full name must be 70 characters or less' });
-    }
-    if (avatar_url && avatar_url.length > 1000) {
-      return res.status(400).json({ error: 'Avatar URL must be 1000 characters or less' });
-    }
-    const existingUser = await pool.query(
-      'SELECT id FROM vendormap.users WHERE username = $1 AND id != $2',
-      [username.trim(), userId]
-    );
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'Username is already taken' });
-    }
-    const updateResult = await pool.query(`
-      UPDATE vendormap.users
-      SET username = $1, full_name = $2, bio = $3, avatar_url = $4, updated_at = NOW()
-      WHERE id = $5
-      RETURNING id, username, email, full_name, avatar_url, bio,
-        is_active, last_login, banned_at, suspended_until,
-        created_at, updated_at, firebase_uid, role
-    `, [
-      username.trim(),
-      full_name?.trim() || null,
-      bio?.trim() || null,
-      avatar_url?.trim() || null,
-      userId
-    ]);
-    if (updateResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    res.json(updateResult.rows[0]);
-  } catch (err) {
-    console.error('Error updating user by id:', err);
-    if (err.code === '23505' && err.constraint === 'users_username_key') {
-      return res.status(400).json({ error: 'Username is already taken' });
-    }
-    res.status(500).json({ error: 'Server error' });
-  }
-});
 
 router.get('/user/reviews', ...requireAuth, async (req, res) => {
   try {
@@ -1169,7 +1390,11 @@ router.get('/user/businesses', ...requireAuth, async (req, res) => {
         b.rejection_reason,
         b.created_at,
         b.reviewed_at,
-        c.name AS category_name
+        c.name AS category_name,
+        (SELECT bl.id FROM vendormap.business_locations bl
+         WHERE bl.business_id = b.id AND bl.is_active = true
+         ORDER BY bl.is_primary DESC, bl.created_at ASC
+         LIMIT 1) AS primary_location_id
       FROM vendormap.businesses b
       LEFT JOIN vendormap.categories c ON c.id = b.category_id
       WHERE b.created_by::text = $1::text
@@ -1182,7 +1407,7 @@ router.get('/user/businesses', ...requireAuth, async (req, res) => {
   }
 });
 
-router.post('/user/avatar', ...requireAuth, upload.single('avatar'), async (req, res) => {
+router.post('/user/avatar', writeLimiter, ...requireAuth, upload.single('avatar'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
@@ -1199,8 +1424,7 @@ router.post('/user/avatar', ...requireAuth, upload.single('avatar'), async (req,
   }
 });
 
-// Review routes: require valid Firebase token only (DB user may be auto-created)
-router.post('/locations/:locationId/reviews', requireToken, async (req, res) => {
+router.post('/locations/:locationId/reviews', writeLimiter, requireToken, async (req, res) => {
   try {
     const { locationId } = req.params;
     const { rating, title, review_text } = req.body;
@@ -1216,9 +1440,9 @@ router.post('/locations/:locationId/reviews', requireToken, async (req, res) => 
     }
 
     const trimmedReviewText = review_text.trim();
-    if (trimmedReviewText.length < 10) {
+    if (trimmedReviewText.length < 15) {
       return res.status(400).json({
-        error: 'Review text must be at least 10 characters long'
+        error: 'Review text must be at least 15 characters long'
       });
     }
 
@@ -1390,7 +1614,7 @@ router.post('/locations/:locationId/reviews', requireToken, async (req, res) => 
 
     userResult = await pool.query(
       `
-        SELECT username, full_name, firebase_uid
+        SELECT username, full_name
         FROM vendormap.users
         WHERE id = $1
         LIMIT 1
@@ -1401,7 +1625,7 @@ router.post('/locations/:locationId/reviews', requireToken, async (req, res) => 
     res.status(201).json({
       ...insertedReview,
       username: userResult.rows[0]?.username ?? 'Unknown',
-      firebase_uid: userResult.rows[0]?.firebase_uid ?? null,
+
       full_name: userResult.rows[0]?.full_name ?? null,
       was_edited: false,
     });
@@ -1412,17 +1636,11 @@ router.post('/locations/:locationId/reviews', requireToken, async (req, res) => 
         error: 'You have already reviewed this location. You can edit your existing review instead of posting another one.'
       });
     }
-    if (err.message && err.message.includes('pattern')) {
-      return res.status(400).json({
-        error: err.message,
-        details: 'The review text does not match the required pattern. Please check the database constraints.'
-      });
-    }
     res.status(500).json({ error: REVIEW_FALLBACK_ERROR });
   }
 });
 
-router.patch('/locations/:locationId/reviews/:reviewId', ...requireAuth, async (req, res) => {
+router.patch('/locations/:locationId/reviews/:reviewId', writeLimiter, ...requireAuth, async (req, res) => {
   try {
     const { locationId, reviewId } = req.params;
     const { rating, title, review_text } = req.body;
@@ -1486,8 +1704,8 @@ router.patch('/locations/:locationId/reviews/:reviewId', ...requireAuth, async (
       }
 
       const trimmedReviewText = review_text.trim();
-      if (trimmedReviewText.length < 10) {
-        return res.status(400).json({ error: 'Review text must be at least 10 characters long' });
+      if (trimmedReviewText.length < 15) {
+        return res.status(400).json({ error: 'Review text must be at least 15 characters long' });
       }
 
       values.push(trimmedReviewText);
@@ -1514,7 +1732,7 @@ router.patch('/locations/:locationId/reviews/:reviewId', ...requireAuth, async (
 
     const reviewUserResult = await pool.query(
       `
-        SELECT username, full_name, firebase_uid
+        SELECT username, full_name
         FROM vendormap.users
         WHERE id = $1
         LIMIT 1
@@ -1525,15 +1743,60 @@ router.patch('/locations/:locationId/reviews/:reviewId', ...requireAuth, async (
     res.json({
       ...updatedReview,
       username: reviewUserResult.rows[0]?.username ?? 'Unknown',
-      firebase_uid: reviewUserResult.rows[0]?.firebase_uid ?? null,
+
       full_name: reviewUserResult.rows[0]?.full_name ?? null,
       was_edited: true,
     });
   } catch (err) {
     console.error('Error editing review:', err);
-    if (err?.message && err.message.includes('pattern')) {
-      return res.status(400).json({ error: 'Updated review text does not match the required format.' });
+    res.status(500).json({ error: REVIEW_FALLBACK_ERROR });
+  }
+});
+
+router.delete('/locations/:locationId/reviews/:reviewId', ...requireAuth, async (req, res) => {
+  try {
+    const { locationId, reviewId } = req.params;
+
+    if (req.auth.dbUser.is_active === false) {
+      return res.status(401).json({ error: 'User account not found or inactive' });
     }
+
+    const resolvedUserId = req.auth.dbUser.id;
+
+    // Verify the review exists and belongs to the user
+    const existingReviewResult = await pool.query(
+      `
+        SELECT id, user_id
+        FROM vendormap.reviews
+        WHERE id = $1
+          AND location_id = $2
+        LIMIT 1
+      `,
+      [reviewId, locationId]
+    );
+
+    if (existingReviewResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Review not found for this location' });
+    }
+
+    if (existingReviewResult.rows[0].user_id !== resolvedUserId) {
+      return res.status(403).json({ error: 'You can only delete your own review' });
+    }
+
+    // Delete the review
+    await pool.query(
+      `
+        DELETE FROM vendormap.reviews
+        WHERE id = $1
+          AND location_id = $2
+          AND user_id = $3
+      `,
+      [reviewId, locationId, resolvedUserId]
+    );
+
+    res.json({ message: 'Review deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting review:', err);
     res.status(500).json({ error: REVIEW_FALLBACK_ERROR });
   }
 });
@@ -1571,6 +1834,252 @@ router.post('/locations/:locationId/reviews/:reviewId/helpful', ...requireAuth, 
   } catch (err) {
     console.error('Error:', err);
     res.status(500).json({ error: REVIEW_FALLBACK_ERROR });
+  }
+});
+
+// Photo routes
+router.post('/locations/:locationId/photos', ...requireAuth, upload.single('photo'), async (req, res) => {
+  try {
+    const { locationId } = req.params;
+    const { caption } = req.body;
+    const dbUserId = req.auth.dbUser.id;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No photo uploaded' });
+    }
+
+    const userPhotoCount = await pool.query(
+      `SELECT COUNT(*) FROM vendormap.location_photos WHERE uploaded_by = $1`,
+      [dbUserId]
+    );
+    if (parseInt(userPhotoCount.rows[0].count, 10) >= 5) {
+      return res.status(400).json({ error: 'You have reached the maximum of 5 photos.' });
+    }
+
+    const locResult = await pool.query(
+      `SELECT id FROM vendormap.business_locations WHERE id = $1 AND is_active = true`,
+      [locationId]
+    );
+    if (locResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Location not found' });
+    }
+
+    const photoUrl = await uploadFile(req.file, 'location_photos');
+
+    const orderResult = await pool.query(
+      `SELECT COALESCE(MAX(display_order), -1) + 1 AS next_order FROM vendormap.location_photos WHERE location_id = $1`,
+      [locationId]
+    );
+    const displayOrder = orderResult.rows[0].next_order;
+
+    const insertResult = await pool.query(`
+      INSERT INTO vendormap.location_photos (
+        location_id, photo_url, thumbnail_url, caption, display_order,
+        is_primary, uploaded_by, moderation_status
+      ) VALUES ($1, $2, $3, $4, $5, false, $6, 'pending')
+      RETURNING id, photo_url, thumbnail_url, caption, display_order, is_primary, moderation_status
+    `, [locationId, photoUrl, photoUrl, caption?.trim() || null, displayOrder, dbUserId]);
+
+    res.status(201).json(insertResult.rows[0]);
+  } catch (err) {
+    console.error('POST /locations/:locationId/photos error:', err);
+    res.status(500).json({ error: 'Failed to upload photo' });
+  }
+});
+
+router.delete('/locations/:locationId/photos/:photoId', ...requireAuth, async (req, res) => {
+  try {
+    const { locationId, photoId } = req.params;
+    const dbUserId = req.auth.dbUser.id;
+    const isAdmin = req.auth.dbUser.role === 'admin';
+
+    const photoResult = await pool.query(
+      `SELECT lp.id, lp.uploaded_by, b.verified_owner_id
+       FROM vendormap.location_photos lp
+       JOIN vendormap.business_locations bl ON bl.id = lp.location_id
+       JOIN vendormap.businesses b ON b.id = bl.business_id
+       WHERE lp.id = $1 AND lp.location_id = $2`,
+      [photoId, locationId]
+    );
+    if (photoResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+
+    const photo = photoResult.rows[0];
+    const isUploader = String(photo.uploaded_by) === String(dbUserId);
+    const isVerifiedOwner = photo.verified_owner_id === dbUserId;
+
+    if (!isUploader && !isVerifiedOwner && !isAdmin) {
+      return res.status(403).json({ error: 'Not authorized to delete this photo' });
+    }
+
+    await pool.query(`DELETE FROM vendormap.location_photos WHERE id = $1`, [photoId]);
+    res.json({ message: 'Photo deleted' });
+  } catch (err) {
+    console.error('DELETE /locations/:locationId/photos/:photoId error:', err);
+    res.status(500).json({ error: 'Failed to delete photo' });
+  }
+});
+
+router.get('/admin/pending-photos', ...requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        lp.id, lp.photo_url, lp.thumbnail_url, lp.caption, lp.created_at,
+        bl.id AS location_id, bl.location_name, bl.cross_street_1, bl.cross_street_2, bl.city, bl.state,
+        b.id AS business_id, b.name AS business_name
+      FROM vendormap.location_photos lp
+      JOIN vendormap.business_locations bl ON bl.id = lp.location_id
+      JOIN vendormap.businesses b ON b.id = bl.business_id
+      WHERE lp.moderation_status = 'pending'
+      ORDER BY lp.created_at ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('GET /admin/pending-photos error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/admin/photos/:photoId/approve', ...requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { photoId } = req.params;
+    const result = await pool.query(
+      `UPDATE vendormap.location_photos SET moderation_status = 'approved' WHERE id = $1 AND moderation_status = 'pending' RETURNING id`,
+      [photoId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Photo not found or already processed' });
+    }
+    res.json({ message: 'Photo approved' });
+  } catch (err) {
+    console.error('POST /admin/photos/:photoId/approve error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/admin/photos/:photoId/reject', ...requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { photoId } = req.params;
+    const result = await pool.query(
+      `DELETE FROM vendormap.location_photos WHERE id = $1 AND moderation_status = 'pending' RETURNING id`,
+      [photoId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Photo not found or already processed' });
+    }
+    res.json({ message: 'Photo rejected and removed' });
+  } catch (err) {
+    console.error('POST /admin/photos/:photoId/reject error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Submit a pending delete request (does NOT immediately delete — requires admin approval)
+router.delete('/businesses/:id', ...requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dbUserId = req.auth.dbUser.id;
+    const { reason } = req.body;
+
+    // Check if business exists and get ownership info
+    const bizResult = await pool.query(
+      `SELECT id, name, verified_owner_id FROM vendormap.businesses
+       WHERE id = $1 AND moderation_status = 'approved' AND is_active = true`,
+      [id]
+    );
+
+    if (bizResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Business not found.' });
+    }
+
+    const business = bizResult.rows[0];
+    const hasVerifiedOwner = business.verified_owner_id !== null;
+    const isVerifiedOwner = business.verified_owner_id === dbUserId;
+
+    // Allow delete request if: no verified owner (anyone can request) OR user is the verified owner
+    if (hasVerifiedOwner && !isVerifiedOwner) {
+      return res.status(403).json({ error: 'Only the verified owner can request deletion of this business.' });
+    }
+
+    await pool.query(
+      `UPDATE vendormap.businesses
+       SET delete_pending = true, delete_reason = $2, updated_at = NOW()
+       WHERE id = $1`,
+      [id, reason || null]
+    );
+
+    res.json({ message: 'Delete request submitted for admin review.' });
+  } catch (err) {
+    console.error('DELETE /businesses/:id error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin: list businesses with pending delete requests
+router.get('/admin/pending-deletions', ...requireAuth, requireAdmin, async (_req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, delete_reason, updated_at
+       FROM vendormap.businesses
+       WHERE delete_pending = true AND is_active = true
+       ORDER BY updated_at ASC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('GET /admin/pending-deletions error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin: approve a pending delete request (performs the actual soft delete)
+router.post('/admin/businesses/:id/approve-delete', ...requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('BEGIN');
+    try {
+      await pool.query(
+        `UPDATE vendormap.business_locations
+         SET is_active = false, temporarily_closed = true, updated_at = NOW()
+         WHERE business_id = $1`,
+        [id]
+      );
+      await pool.query(
+        `UPDATE vendormap.businesses
+         SET is_active = false, delete_pending = false, updated_at = NOW()
+         WHERE id = $1`,
+        [id]
+      );
+      await pool.query('COMMIT');
+      res.json({ message: 'Business deleted.' });
+    } catch (err) {
+      await pool.query('ROLLBACK');
+      throw err;
+    }
+  } catch (err) {
+    console.error('POST /admin/businesses/:id/approve-delete error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin: reject a pending delete request (clears the flag, business stays live)
+router.post('/admin/businesses/:id/reject-delete', ...requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `UPDATE vendormap.businesses
+       SET delete_pending = false, delete_reason = NULL, updated_at = NOW()
+       WHERE id = $1 AND delete_pending = true
+       RETURNING id`,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No pending delete request found for this business.' });
+    }
+    res.json({ message: 'Delete request rejected. Business remains live.' });
+  } catch (err) {
+    console.error('POST /admin/businesses/:id/reject-delete error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

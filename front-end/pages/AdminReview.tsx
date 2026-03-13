@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import useUser from '../src/useUser';
+import { formatBusinessHours } from '../src/utils';
 
 function getValidImageUrl(url: string | null | undefined): string | null {
   if (!url || url.trim() === '') return null;
@@ -40,6 +41,9 @@ interface PendingBusiness {
     phones: string[];
     location_privacy: string;
     business_hours: any;
+    always_open: boolean;
+    weekly_hours_on_website: boolean;
+    subject_to_change: boolean;
     images?: {
       id: number;
       photo_url: string;
@@ -81,6 +85,13 @@ interface PendingEdit {
   }[];
 }
 
+interface PendingDeletion {
+  id: string;
+  name: string;
+  delete_reason: string | null;
+  updated_at: string;
+}
+
 interface PendingPhoto {
   id: string;
   photo_url: string;
@@ -108,6 +119,7 @@ export default function AdminReview() {
   const [claims, setClaims] = useState<PendingClaim[]>([]);
   const [pendingEdits, setPendingEdits] = useState<PendingEdit[]>([]);
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
+  const [pendingDeletions, setPendingDeletions] = useState<PendingDeletion[]>([]);
 
   useEffect(() => {
     const checkAdminRole = async () => {
@@ -216,6 +228,43 @@ export default function AdminReview() {
       });
       if (res.ok) {
         setPendingEdits(prev => prev.filter(e => e.id !== businessId));
+      } else {
+        const err = await res.json();
+        setError(err.error || `Failed to ${action}`);
+      }
+    } catch {
+      setError(`Error performing ${action}`);
+    }
+  };
+
+  useEffect(() => {
+    const fetchPendingDeletions = async () => {
+      if (!user || userRole !== 'admin') return;
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch('/api/admin/pending-deletions', {
+          headers: { 'authtoken': token, 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          setPendingDeletions(await res.json());
+        }
+      } catch {
+        // non-fatal
+      }
+    };
+    if (userRole === 'admin') fetchPendingDeletions();
+  }, [user, userRole]);
+
+  const updateDeletionStatus = async (businessId: string, action: 'approve-delete' | 'reject-delete') => {
+    if (!user) return;
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(`/api/admin/businesses/${businessId}/${action}`, {
+        method: 'POST',
+        headers: { 'authtoken': token, 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setPendingDeletions(prev => prev.filter(d => d.id !== businessId));
       } else {
         const err = await res.json();
         setError(err.error || `Failed to ${action}`);
@@ -377,98 +426,107 @@ export default function AdminReview() {
           
           {businesses.map(business => (
             <div key={business.id} className="admin-business-card">
-              <h2>{business.name}</h2>
-              <p><strong>Category:</strong> {business.category_name}</p>
-              <p><strong>Description:</strong> {business.description || 'None provided'}</p>
-              
-              {getValidImageUrl(business.logo_url) && (
-                <div className="admin-business-logo-container">
-                  <strong>Business Logo:</strong>
-                  <div className="admin-business-logo-image-container">
-                    <img 
-                      src={getValidImageUrl(business.logo_url)!} 
-                      alt="Business logo" 
-                      className="admin-business-logo"
-                    />
-                  </div>
+              <div className="business-page" style={{ border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '16px' }}>
+                <h2 className="business-title">{business.name}</h2>
+
+                {getValidImageUrl(business.logo_url) && (
+                  <img
+                    src={getValidImageUrl(business.logo_url)!}
+                    alt="Business logo"
+                    className="business-logo"
+                  />
+                )}
+
+                <p><strong>Category:</strong> {business.category_name}</p>
+                {business.description && <p className="business-description">{business.description}</p>}
+                {business.websites && <p className="business-websites"><strong>Website:</strong> {business.websites}</p>}
+                {business.email && <p className="business-email"><strong>Email:</strong> {business.email}</p>}
+                {business.parent_company && <p><strong>Parent Company:</strong> {business.parent_company}</p>}
+                {business.keywords.length > 0 && (
+                  <p className="business-keywords"><strong>Keywords:</strong> {business.keywords.join(', ')}</p>
+                )}
+                {business.amenities.length > 0 && (
+                  <p><strong>Amenities:</strong> {business.amenities.join(', ')}</p>
+                )}
+
+                <div className="locations-grid" style={{ marginTop: '16px' }}>
+                  {business.locations.map((location) => {
+                    const hours = formatBusinessHours(location.business_hours);
+                    return (
+                      <section key={location.id} className="location-card">
+                        <p>📍 {location.cross_street_1} & {location.cross_street_2}, {location.city}, {location.state}</p>
+                        {location.phones && location.phones.length > 0 && location.phones.map((ph, i) => (
+                          <p key={i}>📞 {ph}</p>
+                        ))}
+
+                        {location.images && location.images.length > 0 && (
+                          <div className="photo-gallery">
+                            {location.images.map(image => {
+                              const imageUrl = getValidImageUrl(image.thumbnail_url || image.photo_url);
+                              if (!imageUrl) return null;
+                              return (
+                                <figure key={image.id} className="photo-figure">
+                                  <img
+                                    src={imageUrl}
+                                    alt={image.caption || 'Location image'}
+                                    className="location-photo"
+                                  />
+                                  {image.caption && (
+                                    <figcaption className="photo-caption">{image.caption}</figcaption>
+                                  )}
+                                </figure>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <div className="hours-section">
+                          {location.always_open ? (
+                            <p><strong>Hours:</strong> Open 24/7</p>
+                          ) : location.weekly_hours_on_website ? (
+                            <p><strong>Hours:</strong> Posted weekly on business website</p>
+                          ) : hours.length > 0 ? (
+                            <>
+                              <strong>Business hours:</strong>
+                              <div className="hours-list">
+                                {hours.map((line, i) => {
+                                  const colonIdx = line.indexOf(':');
+                                  const day = colonIdx > -1 ? line.slice(0, colonIdx).trim() : '';
+                                  const time = colonIdx > -1 ? line.slice(colonIdx + 1).trim() : line;
+                                  return (
+                                    <div key={i} className="hours-day">
+                                      <span className="hours-day-label">{day || line}</span>
+                                      {day && <span className="hours-time">{time}</span>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          ) : null}
+                          {location.subject_to_change && (
+                            <p><em>Hours subject to change</em></p>
+                          )}
+                        </div>
+                      </section>
+                    );
+                  })}
                 </div>
-              )}
-              <p><strong>Website:</strong> {business.websites || 'None provided'}</p>
-              <p><strong>Email:</strong> {business.email || 'None provided'}</p>
-              <p><strong>Is Chain:</strong> {business.is_chain ? 'Yes' : 'No'}</p>
-              {business.is_chain && business.parent_company && (
-                <p><strong>Parent Company:</strong> {business.parent_company}</p>
-              )}
-              <p><strong>Verified:</strong> {business.if_verified ? 'Yes' : 'No'}</p>
-              <p><strong>Status:</strong> {business.moderation_status}</p>
+              </div>
+
+              {/* Admin metadata */}
               <p><strong>Submitted by:</strong> {business.submitter_name} ({business.submitter_email})</p>
               <p><strong>Submitted:</strong> {new Date(business.created_at).toLocaleDateString()}</p>
-              <p><strong>Terms Accepted:</strong> {business.terms_accepted ? 'Yes' : 'No'} 
+              <p><strong>Terms Accepted:</strong> {business.terms_accepted ? 'Yes' : 'No'}
                 {business.terms_accepted_at && ` (${new Date(business.terms_accepted_at).toLocaleDateString()})`}
                 {business.terms_version && ` - Version: ${business.terms_version}`}
               </p>
-              
+
               {business.verification_data && Object.keys(business.verification_data).length > 0 && (
                 <details>
                   <summary><strong>Verification Data</strong></summary>
                   <pre>{JSON.stringify(business.verification_data, null, 2)}</pre>
                 </details>
               )}
-              
-              {business.keywords.length > 0 && (
-                <p><strong>Keywords:</strong> {business.keywords.join(', ')}</p>
-              )}
-              
-              {business.amenities.length > 0 && (
-                <p><strong>Amenities:</strong> {business.amenities.join(', ')}</p>
-              )}
-              
-              <h3>Locations ({business.locations.length})</h3>
-              {business.locations.map((location, index) => (
-                <div key={location.id} className="admin-location-section">
-                  <h4>Location {index + 1} {location.location_name && `- ${location.location_name}`}</h4>
-                  <p><strong>Address:</strong> {location.cross_street_1} & {location.cross_street_2}, {location.city}, {location.state}</p>
-                  {location.latitude && location.longitude && (
-                    <p><strong>Coordinates:</strong> {Number(location.latitude).toFixed(6)}, {Number(location.longitude).toFixed(6)}</p>
-                  )}
-                  <p><strong>Phone:</strong> {location.phones || 'None provided'}</p>
-                  <p><strong>Privacy:</strong> {location.location_privacy}</p>
-                  
-                  {location.images && location.images.length > 0 && (
-                    <div className="admin-location-images-container">
-                      <strong>Location Images ({location.images.length}):</strong>
-                      <div className="admin-location-images-grid">
-                        {location.images.map(image => {
-                          const imageUrl = getValidImageUrl(image.thumbnail_url || image.photo_url);
-                          if (!imageUrl) return null;
-                          
-                          return (
-                            <div key={image.id}>
-                              <img 
-                                src={imageUrl} 
-                                alt={image.caption || 'Location image'} 
-                                className="admin-location-image"
-                              />
-                              {image.caption && (
-                                <div className="admin-location-image-caption">
-                                  {image.caption}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }).filter(Boolean)}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {location.business_hours && (
-                    <details>
-                      <summary><strong>Business Hours</strong></summary>
-                      <pre>{JSON.stringify(location.business_hours, null, 2)}</pre>
-                    </details>
-                  )}
-                </div>
-              ))}
               
               {/* Moderator Notes */}
               <div className="admin-moderator-notes">
@@ -650,6 +708,32 @@ export default function AdminReview() {
                   className="admin-reject-button"
                 >
                   ❌ Reject Edit
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <hr className="admin-section-divider" />
+      <h1>Pending Business Deletions</h1>
+      <p>Review deletion requests submitted by users. Approving will remove the business from the map.</p>
+
+      {pendingDeletions.length === 0 ? (
+        <p>No pending deletion requests.</p>
+      ) : (
+        <div>
+          <p><strong>{pendingDeletions.length}</strong> pending deletion(s)</p>
+          {pendingDeletions.map(d => (
+            <div key={d.id} className="admin-edit-card">
+              <h2>{d.name}</h2>
+              <p><strong>Reason:</strong> {d.delete_reason || <em>No reason provided</em>}</p>
+              <p><strong>Requested:</strong> {new Date(d.updated_at).toLocaleDateString()}</p>
+              <div className="admin-edit-actions">
+                <button onClick={() => updateDeletionStatus(d.id, 'approve-delete')} className="admin-approve-button">
+                  ✅ Approve Deletion
+                </button>
+                <button onClick={() => updateDeletionStatus(d.id, 'reject-delete')} className="admin-reject-button">
+                  ❌ Reject Deletion
                 </button>
               </div>
             </div>

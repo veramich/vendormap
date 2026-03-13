@@ -1,6 +1,11 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import useUser from "../src/useUser";
+import { capitalizeWords, normalize } from "../src/utils";
+import { US_STATES } from "../src/constants";
+import { HoursEditor } from "../src/components/HoursEditor";
+import type { BusinessHours } from "../src/components/HoursEditor";
+import { AmenitiesEditor } from "../src/components/AmenitiesEditor";
 
 interface LocationPhoto {
   id: string;
@@ -12,22 +17,6 @@ interface LocationPhoto {
   moderation_status: 'pending' | 'approved';
 }
 
-interface HourPeriod {
-  id: string;
-  open: string;
-  close: string;
-  closes_next_day: boolean;
-}
-
-interface DayHours {
-  closed: boolean;
-  open_24_hours: boolean;
-  periods: HourPeriod[];
-}
-
-type DayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-type BusinessHours = { always_open: boolean } & Record<DayIndex, DayHours>;
-
 interface EditLocation {
   location_id: string;
   location_name: string;
@@ -37,7 +26,10 @@ interface EditLocation {
   state: string;
   phones: string[];
   location_privacy: "exact" | "intersection" | "grid";
-  business_hours: BusinessHours;
+  always_open: boolean;
+  weekly_hours_on_website: boolean;
+  subject_to_change: boolean;
+  business_hours: BusinessHours | null;
 }
 
 interface EditForm {
@@ -48,40 +40,17 @@ interface EditForm {
   email: string;
   keywords: string[];
   amenities: string[];
-  is_chain: boolean;
   locations: EditLocation[];
 }
-
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
-const DAYS = [0, 1, 2, 3, 4, 5, 6] as const;
-
-const DEFAULT_HOUR_PERIOD = (): HourPeriod => ({
-  id: crypto.randomUUID(),
-  open: "09:00",
-  close: "17:00",
-  closes_next_day: false,
-});
-
-const US_STATES = [
-  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN",
-  "IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV",
-  "NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN",
-  "TX","UT","VT","VA","WA","WV","WI","WY",
-];
-
-const COMMON_AMENITIES = [
-  "Home Based", "Sidewalk Based", "Food Truck", "Farmer's Market", "Pop Ups", "Catering", "Private Events", "Farmer's Market Only", "Pop Up Only", "Catering Only",
-  "DM To Order", "Text To Order", "Call To Order", "Order Online", "Walk-Up Orders", "Order Ahead", "Pre-Order Required", "No Walk-Ins", "Time-Slot Reservations",
-  "Cash Only", "Cash Preferred", "Tap To Pay", "Credit Cards", "Cash App", "Zelle", "Venmo", "PayPal", "Apple Cash", "Google Pay", "Samsung Pay",
-  "Pickup", "Curbside Pickup", "Delivery", "Shipping", "US Shipping", "International Shipping", "Street Parking", "Parking Lot", "Wheelchair Accessible", "Outdoor Seating", "Restrooms",
-  "Vegan Options", "Vegetarian Options", "Gluten-Free Options", "Halal Options", "Kosher Options", "Locally Sourced Ingredients", "Organic Options", "Late Night"
-];
 
 interface Category {
   id: number;
   name: string;
   icon: string;
 }
+
+const TOTAL_STEPS = 4;
+const STEP_LABELS = ["Business Info", "Location", "Hours", "Details"];
 
 export default function EditBusiness() {
   const { id } = useParams<{ id: string }>();
@@ -96,15 +65,16 @@ export default function EditBusiness() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keywordInput, setKeywordInput] = useState("");
-  const [amenityInput, setAmenityInput] = useState("");
+  const [websiteInput, setWebsiteInput] = useState("");
   const [locationPhotos, setLocationPhotos] = useState<Record<string, LocationPhoto[]>>({});
-  const [captionInputs, setCaptionInputs] = useState<Record<string, string>>({});
   const [photoUploading, setPhotoUploading] = useState<Record<string, boolean>>({});
   const [photoErrors, setPhotoErrors] = useState<Record<string, string | null>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [deleteRequested, setDeleteRequested] = useState(false);
   const [businessData, setBusinessData] = useState<any>(null);
+  const [step, setStep] = useState(1);
 
   useEffect(() => {
     fetch("/api/categories")
@@ -128,7 +98,7 @@ export default function EditBusiness() {
         }
         const data = await res.json();
         setIsVerifiedOwner(data.isVerifiedOwner);
-        setBusinessData(data); // Store the full business data
+        setBusinessData(data);
         setForm({
           name: data.name || "",
           category_id: String(data.category_id || ""),
@@ -137,7 +107,6 @@ export default function EditBusiness() {
           email: data.email || "",
           keywords: Array.isArray(data.keywords) ? data.keywords : [],
           amenities: Array.isArray(data.amenities) ? data.amenities : [],
-          is_chain: data.is_chain || false,
           locations: (data.locations || []).map((loc: any) => ({
             location_id: loc.location_id,
             location_name: loc.location_name || "",
@@ -147,6 +116,9 @@ export default function EditBusiness() {
             state: loc.state || "",
             phones: Array.isArray(loc.phones) ? loc.phones : [],
             location_privacy: loc.location_privacy || "intersection",
+            always_open: loc.always_open || false,
+            weekly_hours_on_website: loc.weekly_hours_on_website || false,
+            subject_to_change: loc.subject_to_change || false,
             business_hours: loc.business_hours,
           })),
         });
@@ -171,45 +143,9 @@ export default function EditBusiness() {
     setForm({ ...form, locations });
   };
 
-  const updateLocationHours = (locationIndex: number, hours: BusinessHours) => {
-    if (!form) return;
-    const locations = [...form.locations];
-    locations[locationIndex] = { ...locations[locationIndex], business_hours: hours };
-    setForm({ ...form, locations });
-  };
-
-  const updateDayHours = (locationIndex: number, day: DayIndex, updates: Partial<DayHours>) => {
-    if (!form) return;
-    const loc = form.locations[locationIndex];
-    const updatedHours = { ...loc.business_hours, [day]: { ...loc.business_hours[day], ...updates } };
-    updateLocationHours(locationIndex, updatedHours as BusinessHours);
-  };
-
-  const addHourPeriod = (locationIndex: number, day: DayIndex) => {
-    if (!form) return;
-    const dayHours = form.locations[locationIndex].business_hours[day];
-    updateDayHours(locationIndex, day, { periods: [...dayHours.periods, DEFAULT_HOUR_PERIOD()] });
-  };
-
-  const updateHourPeriod = (locationIndex: number, day: DayIndex, periodId: string, updates: Partial<HourPeriod>) => {
-    if (!form) return;
-    const dayHours = form.locations[locationIndex].business_hours[day];
-    updateDayHours(locationIndex, day, {
-      periods: dayHours.periods.map(p => p.id === periodId ? { ...p, ...updates } : p),
-    });
-  };
-
-  const removeHourPeriod = (locationIndex: number, day: DayIndex, periodId: string) => {
-    if (!form) return;
-    const dayHours = form.locations[locationIndex].business_hours[day];
-    if (dayHours.periods.length > 1) {
-      updateDayHours(locationIndex, day, { periods: dayHours.periods.filter(p => p.id !== periodId) });
-    }
-  };
-
   const addKeyword = () => {
     if (!form) return;
-    const trimmed = keywordInput.trim().toLowerCase();
+    const trimmed = normalize(keywordInput);
     if (trimmed && !form.keywords.includes(trimmed) && form.keywords.length < 10) {
       setForm({ ...form, keywords: [...form.keywords, trimmed] });
       setKeywordInput("");
@@ -221,18 +157,31 @@ export default function EditBusiness() {
     setForm({ ...form, keywords: form.keywords.filter((k) => k !== kw) });
   };
 
-  const addAmenity = (amenity?: string) => {
+  const addAmenity = (amenity: string) => {
     if (!form) return;
-    const toAdd = amenity || amenityInput.trim();
-    if (toAdd && !form.amenities.includes(toAdd) && form.amenities.length < 20) {
-      setForm({ ...form, amenities: [...form.amenities, toAdd] });
-      setAmenityInput("");
+    if (amenity && !form.amenities.includes(amenity) && form.amenities.length < 20) {
+      setForm({ ...form, amenities: [...form.amenities, amenity] });
     }
   };
 
   const removeAmenity = (amenity: string) => {
     if (!form) return;
     setForm({ ...form, amenities: form.amenities.filter((a) => a !== amenity) });
+  };
+
+  const addWebsite = () => {
+    if (!form) return;
+    let website = websiteInput.trim();
+    if (website && !form.websites.includes(website)) {
+      if (!/^https?:\/\//i.test(website)) website = `https://${website}`;
+      setForm({ ...form, websites: [...form.websites, website] });
+      setWebsiteInput("");
+    }
+  };
+
+  const removeWebsite = (index: number) => {
+    if (!form) return;
+    setForm({ ...form, websites: form.websites.filter((_, i) => i !== index) });
   };
 
   const uploadPhoto = async (locationId: string, file: File) => {
@@ -243,8 +192,6 @@ export default function EditBusiness() {
       const token = await user.getIdToken();
       const formData = new FormData();
       formData.append('photo', file);
-      const caption = captionInputs[locationId]?.trim() || '';
-      if (caption) formData.append('caption', caption);
       const res = await fetch(`/api/locations/${locationId}/photos`, {
         method: 'POST',
         headers: { authtoken: token, Authorization: `Bearer ${token}` },
@@ -252,11 +199,7 @@ export default function EditBusiness() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
-      setLocationPhotos(prev => ({
-        ...prev,
-        [locationId]: [...(prev[locationId] || []), data],
-      }));
-      setCaptionInputs(prev => ({ ...prev, [locationId]: '' }));
+      setLocationPhotos(prev => ({ ...prev, [locationId]: [...(prev[locationId] || []), data] }));
     } catch (err: any) {
       setPhotoErrors(prev => ({ ...prev, [locationId]: err.message || 'Upload failed' }));
     } finally {
@@ -276,10 +219,7 @@ export default function EditBusiness() {
         const data = await res.json();
         throw new Error(data.error || 'Delete failed');
       }
-      setLocationPhotos(prev => ({
-        ...prev,
-        [locationId]: (prev[locationId] || []).filter(p => p.id !== photoId),
-      }));
+      setLocationPhotos(prev => ({ ...prev, [locationId]: (prev[locationId] || []).filter(p => p.id !== photoId) }));
     } catch (err: any) {
       setError(err.message || 'Failed to delete photo');
     }
@@ -300,7 +240,6 @@ export default function EditBusiness() {
         email: form.email,
         keywords: form.keywords,
         amenities: form.amenities,
-        is_chain: form.is_chain,
       };
       const locationEdits = form.locations.map(loc => {
         const edit: any = {
@@ -318,7 +257,6 @@ export default function EditBusiness() {
         }
         return edit;
       });
-
       const res = await fetch(`/api/businesses/${id}`, {
         method: "PUT",
         headers: {
@@ -342,30 +280,62 @@ export default function EditBusiness() {
 
   const handleDelete = async () => {
     if (!user || !id) return;
+    if (!deleteReason.trim()) {
+      setError("Please provide a reason for deletion.");
+      return;
+    }
     setDeleting(true);
     setError(null);
     try {
       const token = await user.getIdToken();
       const res = await fetch(`/api/businesses/${id}`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          authtoken: token,
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", authtoken: token, Authorization: `Bearer ${token}` },
         body: JSON.stringify({ reason: deleteReason }),
       });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || "Delete failed");
       }
-      navigate("/", { replace: true });
+      setDeleteRequested(true);
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setDeleting(false);
       setShowDeleteConfirm(false);
     }
+  };
+
+  const validateStep = (s: number): string | null => {
+    if (!form) return null;
+    if (s === 1) {
+      if (!form.name.trim()) return "Business name is required.";
+      if (!form.category_id) return "Please select a category.";
+    }
+    if (s === 2) {
+      const loc = form.locations[0];
+      if (isVerifiedOwner) {
+        if (!loc.cross_street_1.trim()) return "Cross Street 1 is required.";
+        if (!loc.cross_street_2.trim()) return "Cross Street 2 is required.";
+        if (!loc.city.trim()) return "City is required.";
+        if (!loc.state) return "State is required.";
+      }
+    }
+    return null;
+  };
+
+  const goNext = () => {
+    const err = validateStep(step);
+    if (err) { setError(err); return; }
+    setError(null);
+    setStep((s) => Math.min(s + 1, TOTAL_STEPS));
+    window.scrollTo(0, 0);
+  };
+
+  const goBack = () => {
+    setError(null);
+    setStep((s) => Math.max(s - 1, 1));
+    window.scrollTo(0, 0);
   };
 
   if (isLoading || (loading && user)) return <div>Loading...</div>;
@@ -389,6 +359,16 @@ export default function EditBusiness() {
     );
   }
 
+  if (deleteRequested) {
+    return (
+      <div>
+        <h1>Delete Request Submitted</h1>
+        <p>Your request to delete this business has been sent to admin for review. The listing will remain visible until approved.</p>
+        <button onClick={() => navigate(`/locations/${form?.locations[0]?.location_id}`)}>Back to business</button>
+      </div>
+    );
+  }
+
   if (submitted) {
     return (
       <div>
@@ -402,496 +382,449 @@ export default function EditBusiness() {
   if (!form) return <div>Loading...</div>;
 
   return (
-    <div>
-      <h1>Edit Business</h1>
-      <p>Changes are reviewed before being applied. The current listing stays visible in the meantime.</p>
-      {!isVerifiedOwner && (
-        <p><small>Address and coordinate fields can only be edited by the verified owner.</small></p>
-      )}
+    <div className="wizard-container">
+      <div className="wizard-scroll-area">
+        <h1>Edit Business</h1>
+        <p style={{ marginBottom: '8px', fontSize: '14px', color: '#94a3b8' }}>
+          Changes are reviewed before being applied.
+        </p>
+        {!isVerifiedOwner && (
+          <p style={{ marginBottom: '16px', fontSize: '13px', color: '#64748b' }}>
+            Address fields can only be edited by the verified owner.
+          </p>
+        )}
 
-      {error && <div><strong>Error:</strong> {error}</div>}
-
-      <form onSubmit={handleSubmit}>
-
-        <fieldset>
-          <legend>Business Information</legend>
-
-          <label>
-            Business Name *
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-          </label>
-
-          <label>
-            Category *
-            <select
-              value={form.category_id}
-              onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-              required
+        {/* Step indicator */}
+        <div className="wizard-steps">
+          {STEP_LABELS.map((label, i) => (
+            <div
+              key={i}
+              className={`wizard-step${step === i + 1 ? " active" : ""}${step > i + 1 ? " completed" : ""}`}
             >
-              <option value="">Select a category</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.icon} {cat.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Description
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              rows={4}
-              maxLength={1000}
-              placeholder="Describe the business..."
-            />
-          </label>
-
-          <div>
-            <strong>Websites</strong>
-            {form.websites.map((url, i) => (
-              <div key={i}>
-                <input
-                  type="url"
-                  value={url}
-                  onChange={(e) => {
-                    const updated = [...form.websites];
-                    updated[i] = e.target.value;
-                    setForm({ ...form, websites: updated });
-                  }}
-                  onBlur={(e) => {
-                    const val = e.target.value.trim();
-                    if (val && !/^https?:\/\//i.test(val)) {
-                      const updated = [...form.websites];
-                      updated[i] = `https://${val}`;
-                      setForm({ ...form, websites: updated });
-                    }
-                  }}
-                  pattern="https?://[^\s]+\.[a-zA-Z]{2,}(/[^\s]*)?"
-                  title="URL must include a valid suffix (e.g. .com, .co, .org)"
-                  placeholder="https://example.com"
-                />
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, websites: form.websites.filter((_, j) => j !== i) })}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, websites: [...form.websites, ""] })}
-            >
-              Add Website
-            </button>
-          </div>
-
-          <label>
-            Email
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="contact@business.com"
-            />
-          </label>
-
-          <label>
-            <input
-              type="checkbox"
-              checked={form.is_chain}
-              onChange={(e) => setForm({ ...form, is_chain: e.target.checked })}
-            />
-            This business has multiple locations
-          </label>
-        </fieldset>
-
-        <fieldset>
-          <legend>Keywords (up to 10)</legend>
-          <label>
-            Add keyword
-            <input
-              type="text"
-              value={keywordInput}
-              onChange={(e) => setKeywordInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addKeyword(); } }}
-              placeholder="e.g. coffee, breakfast, wifi"
-            />
-            <button type="button" onClick={addKeyword} disabled={form.keywords.length >= 10}>
-              Add Keyword
-            </button>
-          </label>
-          <div>
-            {form.keywords.map((kw) => (
-              <span key={kw}>
-                {kw} <button type="button" onClick={() => removeKeyword(kw)}>×</button>
-              </span>
-            ))}
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Amenities (up to 20)</legend>
-          <label>
-            Add custom amenity
-            <input
-              type="text"
-              value={amenityInput}
-              onChange={(e) => setAmenityInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAmenity(); } }}
-              placeholder="e.g. Free WiFi, Outdoor Seating"
-            />
-            <button type="button" onClick={() => addAmenity()} disabled={form.amenities.length >= 20}>
-              Add Amenity
-            </button>
-          </label>
-          <div>
-            <strong>Common amenities:</strong>
-            <div>
-              {COMMON_AMENITIES.map((amenity) => (
-                <label key={amenity} className="amenity-checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={form.amenities.includes(amenity)}
-                    onChange={(e) => {
-                      if (e.target.checked) addAmenity(amenity);
-                      else removeAmenity(amenity);
-                    }}
-                    disabled={!form.amenities.includes(amenity) && form.amenities.length >= 20}
-                  />
-                  {amenity}
-                </label>
-              ))}
-            </div>
-          </div>
-          {form.amenities.filter(a => !COMMON_AMENITIES.includes(a)).length > 0 && (
-            <div>
-              <strong>Custom amenities:</strong>
-              <div>
-                {form.amenities.filter(a => !COMMON_AMENITIES.includes(a)).map((amenity) => (
-                  <span key={amenity}>
-                    {amenity} <button type="button" onClick={() => removeAmenity(amenity)}>×</button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </fieldset>
-
-        <fieldset>
-          <legend>Locations</legend>
-          {form.locations.map((loc, locationIndex) => (
-            <div key={loc.location_id}>
-              <h3>Location {locationIndex + 1}{loc.location_name ? ` — ${loc.location_name}` : ''}</h3>
-
-              <label>
-                Location Name
-                <input
-                  type="text"
-                  value={loc.location_name}
-                  onChange={(e) => updateLocation(locationIndex, { ...loc, location_name: e.target.value })}
-                  placeholder="e.g. Downtown, North Side"
-                />
-              </label>
-
-              <label>
-                Cross Street 1 *
-                <input
-                  type="text"
-                  value={loc.cross_street_1}
-                  onChange={(e) => updateLocation(locationIndex, { ...loc, cross_street_1: e.target.value })}
-                  required
-                  disabled={!isVerifiedOwner}
-                  title={!isVerifiedOwner ? "Only the verified owner can edit the address" : undefined}
-                />
-              </label>
-
-              <label>
-                Cross Street 2 *
-                <input
-                  type="text"
-                  value={loc.cross_street_2}
-                  onChange={(e) => updateLocation(locationIndex, { ...loc, cross_street_2: e.target.value })}
-                  required
-                  disabled={!isVerifiedOwner}
-                  title={!isVerifiedOwner ? "Only the verified owner can edit the address" : undefined}
-                />
-              </label>
-
-              <label>
-                City *
-                <input
-                  type="text"
-                  value={loc.city}
-                  onChange={(e) => updateLocation(locationIndex, { ...loc, city: e.target.value })}
-                  required
-                  disabled={!isVerifiedOwner}
-                  title={!isVerifiedOwner ? "Only the verified owner can edit the address" : undefined}
-                />
-              </label>
-
-              <label>
-                State *
-                <select
-                  value={loc.state}
-                  onChange={(e) => updateLocation(locationIndex, { ...loc, state: e.target.value })}
-                  required
-                  disabled={!isVerifiedOwner}
-                  title={!isVerifiedOwner ? "Only the verified owner can edit the address" : undefined}
-                >
-                  <option value="">Select state</option>
-                  {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </label>
-
-              <div>
-                <strong>Phone Numbers</strong>
-                {loc.phones.map((phone, phoneIndex) => (
-                  <div key={phoneIndex}>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => {
-                        const updated = [...loc.phones];
-                        updated[phoneIndex] = e.target.value.replace(/\D/g, '');
-                        updateLocation(locationIndex, { ...loc, phones: updated });
-                      }}
-                      pattern="\d{10}"
-                      maxLength={10}
-                      title="Enter a 10-digit phone number (digits only)"
-                      placeholder="5551234567"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => updateLocation(locationIndex, { ...loc, phones: loc.phones.filter((_, j) => j !== phoneIndex) })}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => updateLocation(locationIndex, { ...loc, phones: [...loc.phones, ""] })}
-                >
-                  Add Phone Number
-                </button>
-              </div>
-
-              <label>
-                Location Privacy
-                <select
-                  value={loc.location_privacy}
-                  onChange={(e) => updateLocation(locationIndex, { ...loc, location_privacy: e.target.value as any })}
-                >
-                  <option value="intersection">Show nearest intersection (recommended for privacy)</option>
-                  <option value="exact">Show exact location</option>
-                  <option value="grid">Show general area only</option>
-                </select>
-              </label>
-
-              <fieldset>
-                <legend>Hours for {loc.location_name || `Location ${locationIndex + 1}`}</legend>
-
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={loc.business_hours?.always_open}
-                    onChange={(e) =>
-                      updateLocationHours(locationIndex, { ...loc.business_hours, always_open: e.target.checked })
-                    }
-                  />
-                  Open 24/7
-                </label>
-
-                {!loc.business_hours?.always_open && (
-                  <div>
-                    {DAYS.map((day) => {
-                      const dayHours = loc.business_hours?.[day] as DayHours | undefined;
-                      if (!dayHours) return null;
-                      return (
-                        <div key={day}>
-                          <h4>{DAY_NAMES[day]}</h4>
-
-                          <label>
-                            <input
-                              type="checkbox"
-                              checked={dayHours.closed}
-                              onChange={(e) => updateDayHours(locationIndex, day, { closed: e.target.checked, periods: e.target.checked ? [] : [DEFAULT_HOUR_PERIOD()] })}
-                            />
-                            Closed
-                          </label>
-
-                          {!dayHours.closed && (
-                            <>
-                              <label>
-                                <input
-                                  type="checkbox"
-                                  checked={dayHours.open_24_hours}
-                                  onChange={(e) => updateDayHours(locationIndex, day, { open_24_hours: e.target.checked, periods: e.target.checked ? [] : [DEFAULT_HOUR_PERIOD()] })}
-                                />
-                                24 hours
-                              </label>
-
-                              {!dayHours.open_24_hours && (
-                                <div>
-                                  {dayHours.periods.map((period, periodIndex) => (
-                                    <div key={period.id}>
-                                      <strong>Hours {periodIndex + 1}:</strong>
-                                      <label>
-                                        Open:
-                                        <input
-                                          type="time"
-                                          value={period.open}
-                                          onChange={(e) => updateHourPeriod(locationIndex, day, period.id, { open: e.target.value })}
-                                        />
-                                      </label>
-                                      <label>
-                                        Close:
-                                        <input
-                                          type="time"
-                                          value={period.close}
-                                          onChange={(e) => updateHourPeriod(locationIndex, day, period.id, { close: e.target.value })}
-                                        />
-                                      </label>
-                                      <label>
-                                        <input
-                                          type="checkbox"
-                                          checked={period.closes_next_day}
-                                          onChange={(e) => updateHourPeriod(locationIndex, day, period.id, { closes_next_day: e.target.checked })}
-                                        />
-                                        Closes next day (e.g. closes at 2 AM)
-                                      </label>
-                                      {dayHours.periods.length > 1 && (
-                                        <button
-                                          type="button"
-                                          onClick={() => removeHourPeriod(locationIndex, day, period.id)}
-                                        >
-                                          Remove these hours
-                                        </button>
-                                      )}
-                                    </div>
-                                  ))}
-                                  <button type="button" onClick={() => addHourPeriod(locationIndex, day)}>
-                                    Add another set of hours for {DAY_NAMES[day]}
-                                  </button>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </fieldset>
-
-              <fieldset>
-                <legend>Photos for {loc.location_name || `Location ${locationIndex + 1}`}</legend>
-
-                {(locationPhotos[loc.location_id] || []).length > 0 && (
-                  <div className="photo-gallery">
-                    {(locationPhotos[loc.location_id] || []).map(photo => (
-                      <div key={photo.id} className="photo-item">
-                        <img
-                          src={photo.thumbnail_url ?? photo.photo_url}
-                          alt={photo.caption ?? 'Location photo'}
-                          className={`photo-thumbnail ${photo.moderation_status === 'pending' ? 'photo-thumbnail-pending' : ''}`}
-                        />
-                        {photo.moderation_status === 'pending' && (
-                          <span className="photo-pending-badge">
-                            Pending
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => deletePhoto(loc.location_id, photo.id)}
-                          className="photo-delete-button"
-                        >
-                          ×
-                        </button>
-                        {photo.caption && (
-                          <div className="photo-caption">{photo.caption}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="photo-upload-form">
-                  <label>
-                    Caption (optional)
-                    <input
-                      type="text"
-                      value={captionInputs[loc.location_id] || ''}
-                      onChange={e => setCaptionInputs(prev => ({ ...prev, [loc.location_id]: e.target.value }))}
-                      placeholder="Describe the photo"
-                      maxLength={200}
-                    />
-                  </label>
-                  <label>
-                    Add photo
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={photoUploading[loc.location_id]}
-                      onChange={e => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          uploadPhoto(loc.location_id, file);
-                          e.target.value = '';
-                        }
-                      }}
-                    />
-                  </label>
-                  {photoUploading[loc.location_id] && <small>Uploading…</small>}
-                  {photoErrors[loc.location_id] && (
-                    <small className="photo-error">{photoErrors[loc.location_id]}</small>
-                  )}
-                  <small>Photos are reviewed before appearing on the listing.</small>
-                </div>
-              </fieldset>
+              <div className="wizard-step-number">{step > i + 1 ? "✓" : i + 1}</div>
+              <div className="wizard-step-label">{label}</div>
             </div>
           ))}
-        </fieldset>
+        </div>
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Submitting..." : "Submit Edit for Review"}
-        </button>
-        <button type="button" onClick={() => navigate(-1)} className="button-secondary">
-          Cancel
-        </button>
-        
-        {(isVerifiedOwner || (businessData && businessData.verified_owner_id === null)) && (
-          <button 
-            type="button" 
-            onClick={() => setShowDeleteConfirm(true)} 
-            className="btn btn-danger"
-            style={{ marginLeft: '10px' }}
-            disabled={submitting || deleting}
-          >
-            Delete Business
+        {error && (
+          <div className="wizard-error">
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+
+        <form id="wizard-form" onSubmit={handleSubmit}>
+          {step === 1 && (
+            <>
+              {/* ── Step 1: Business Info ── */}
+              <fieldset>
+                <legend>Business Information</legend>
+
+                <label>
+                  Business Name *
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  />
+                </label>
+
+                <label>
+                  Category *
+                  <select
+                    value={form.category_id}
+                    onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Description
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    rows={4}
+                    maxLength={1000}
+                    placeholder="Describe the business..."
+                  />
+                </label>
+
+                <div>
+                  <strong>Websites</strong>
+                  <label>
+                    Add website URL
+                    <input
+                      type="url"
+                      value={websiteInput}
+                      onChange={(e) => setWebsiteInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addWebsite(); } }}
+                      placeholder="https://example.com"
+                    />
+                    <button type="button" onClick={addWebsite}>Add Website</button>
+                  </label>
+                  {form.websites.length > 0 && (
+                    <div>
+                      {form.websites.map((url, i) => (
+                        <div key={i}>
+                          <input
+                            type="url"
+                            value={url}
+                            onChange={(e) => { const u = [...form.websites]; u[i] = e.target.value; setForm({ ...form, websites: u }); }}
+                            onBlur={(e) => { const v = e.target.value.trim(); if (v && !/^https?:\/\//i.test(v)) { const u = [...form.websites]; u[i] = `https://${v}`; setForm({ ...form, websites: u }); } }}
+                            pattern="https?://[^\s]+\.[a-zA-Z]{2,}(/[^\s]*)?"
+                            title="URL must include a valid suffix (e.g. .com, .co, .org)"
+                          />
+                          <button type="button" onClick={() => removeWebsite(i)}>Remove</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="contact@business.com"
+                  />
+                </label>
+              </fieldset>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              {/* ── Step 2: Location ── */}
+              <fieldset>
+                <legend>Location</legend>
+                {form.locations.map((loc, locationIndex) => (
+                  <div key={loc.location_id} className="wizard-location-block">
+                    <label>
+                      Cross Street 1 *
+                      <input
+                        type="text"
+                        value={loc.cross_street_1}
+                        onChange={(e) => updateLocation(locationIndex, { ...loc, cross_street_1: capitalizeWords(e.target.value) })}
+                        disabled={!isVerifiedOwner}
+                        title={!isVerifiedOwner ? "Only the verified owner can edit the address" : undefined}
+                        placeholder="e.g. Main St"
+                      />
+                    </label>
+
+                    <label>
+                      Cross Street 2 *
+                      <input
+                        type="text"
+                        value={loc.cross_street_2}
+                        onChange={(e) => updateLocation(locationIndex, { ...loc, cross_street_2: capitalizeWords(e.target.value) })}
+                        disabled={!isVerifiedOwner}
+                        title={!isVerifiedOwner ? "Only the verified owner can edit the address" : undefined}
+                        placeholder="e.g. First Ave"
+                      />
+                    </label>
+
+                    <label>
+                      City *
+                      <input
+                        type="text"
+                        value={loc.city}
+                        onChange={(e) => updateLocation(locationIndex, { ...loc, city: capitalizeWords(e.target.value) })}
+                        disabled={!isVerifiedOwner}
+                        title={!isVerifiedOwner ? "Only the verified owner can edit the address" : undefined}
+                        placeholder="e.g. Los Angeles"
+                      />
+                    </label>
+
+                    <label>
+                      State *
+                      <select
+                        value={loc.state}
+                        onChange={(e) => updateLocation(locationIndex, { ...loc, state: e.target.value })}
+                        disabled={!isVerifiedOwner}
+                        title={!isVerifiedOwner ? "Only the verified owner can edit the address" : undefined}
+                      >
+                        <option value="">Select state</option>
+                        {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </label>
+
+                    <div>
+                      <strong>Phone Numbers</strong>
+                      {loc.phones.map((phone, phoneIndex) => (
+                        <div key={phoneIndex}>
+                          <input
+                            type="tel"
+                            value={phone}
+                            onChange={(e) => {
+                              const updated = [...loc.phones];
+                              updated[phoneIndex] = e.target.value.replace(/\D/g, '');
+                              updateLocation(locationIndex, { ...loc, phones: updated });
+                            }}
+                            pattern="\d{10}"
+                            maxLength={10}
+                            title="Enter a 10-digit phone number (digits only)"
+                            placeholder="5551234567"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updateLocation(locationIndex, { ...loc, phones: loc.phones.filter((_, j) => j !== phoneIndex) })}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => updateLocation(locationIndex, { ...loc, phones: [...loc.phones, ""] })}
+                      >
+                        Add Phone Number
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </fieldset>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              {/* ── Step 3: Hours ── */}
+              <div>
+                {form.locations.map((loc, locationIndex) => (
+                  <fieldset key={loc.location_id}>
+                    <legend>Hours</legend>
+                    <HoursEditor
+                      hours={loc.business_hours}
+                      flags={{ always_open: loc.always_open, weekly_hours_on_website: loc.weekly_hours_on_website, subject_to_change: loc.subject_to_change }}
+                      onChange={(h) => updateLocation(locationIndex, { ...loc, business_hours: h })}
+                      onFlagsChange={(f) => updateLocation(locationIndex, { ...loc, ...f })}
+                    />
+                  </fieldset>
+                ))}
+              </div>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              {/* ── Step 4: Keywords, Amenities, Photos ── */}
+              <fieldset>
+                <legend>Keywords (up to 10)</legend>
+                <label>
+                  Add keyword
+                  <input
+                    type="text"
+                    value={keywordInput}
+                    onChange={(e) => setKeywordInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addKeyword(); } }}
+                    placeholder="e.g. coffee, breakfast, wifi"
+                  />
+                  <button type="button" onClick={addKeyword} disabled={form.keywords.length >= 10}>
+                    Add Keyword
+                  </button>
+                </label>
+                <div>
+                  {form.keywords.map((kw) => (
+                    <span key={kw}>
+                      {kw} <button type="button" onClick={() => removeKeyword(kw)}>×</button>
+                    </span>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend>Amenities (up to 20)</legend>
+                <p><small>Select all that apply.</small></p>
+                <AmenitiesEditor
+                  amenities={form.amenities}
+                  onAdd={addAmenity}
+                  onRemove={removeAmenity}
+                  maxCount={20}
+                />
+              </fieldset>
+
+              {form.locations.map((loc) => (
+                <fieldset key={loc.location_id}>
+                  <legend>Photos</legend>
+
+                  {(locationPhotos[loc.location_id] || []).length > 0 && (
+                    <div className="photo-gallery" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+                      {(locationPhotos[loc.location_id] || []).map(photo => (
+                        <div 
+                          key={photo.id} 
+                          className="photo-item"
+                          style={{ 
+                            position: 'relative',
+                            width: '120px',
+                            height: '120px',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            border: '2px solid #e5e7eb',
+                            backgroundColor: '#f9fafb'
+                          }}
+                        >
+                          <img
+                            src={photo.thumbnail_url ?? photo.photo_url}
+                            alt={photo.caption ?? 'Location photo'}
+                            className={`photo-thumbnail ${photo.moderation_status === 'pending' ? 'photo-thumbnail-pending' : ''}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              opacity: photo.moderation_status === 'pending' ? '0.7' : '1'
+                            }}
+                          />
+                          {photo.moderation_status === 'pending' && (
+                            <span 
+                              className="photo-pending-badge"
+                              style={{
+                                position: 'absolute',
+                                bottom: '4px',
+                                left: '4px',
+                                backgroundColor: 'rgba(245, 158, 11, 0.9)',
+                                color: 'white',
+                                fontSize: '10px',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              Pending
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => deletePhoto(loc.location_id, photo.id)}
+                            className="photo-delete-button"
+                            style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              width: '24px',
+                              height: '24px',
+                              borderRadius: '50%',
+                              backgroundColor: 'rgba(239, 68, 68, 0.9)',
+                              color: 'white',
+                              border: 'none',
+                              fontSize: '14px',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.9)';
+                              e.currentTarget.style.transform = 'scale(1.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.9)';
+                              e.currentTarget.style.transform = 'scale(1)';
+                            }}
+                          >
+                            ×
+                          </button>
+                          {photo.caption && (
+                            <div 
+                              className="photo-caption"
+                              style={{
+                                position: 'absolute',
+                                bottom: '0',
+                                left: '0',
+                                right: '0',
+                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                color: 'white',
+                                fontSize: '11px',
+                                padding: '4px 6px',
+                                maxHeight: '40px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                lineHeight: '1.2'
+                              }}
+                              title={photo.caption}
+                            >
+                              {photo.caption}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="photo-upload-form">
+                    <label>
+                      Add photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={photoUploading[loc.location_id]}
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) { uploadPhoto(loc.location_id, file); e.target.value = ''; }
+                        }}
+                      />
+                    </label>
+                    {photoUploading[loc.location_id] && <small>Uploading…</small>}
+                    {photoErrors[loc.location_id] && (
+                      <small className="photo-error">{photoErrors[loc.location_id]}</small>
+                    )}
+                    <small>Photos are reviewed before appearing on the listing.</small>
+                  </div>
+                </fieldset>
+              ))}
+
+              {(isVerifiedOwner || (businessData && businessData.verified_owner_id === null)) && (
+                <fieldset style={{ borderColor: 'rgba(220,38,38,0.3)' }}>
+                  <legend style={{ color: '#fca5a5' }}>Danger Zone</legend>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="btn btn-danger"
+                    disabled={submitting || deleting}
+                  >
+                    Delete Business
+                  </button>
+                </fieldset>
+              )}
+            </>
+          )}
+        </form>
+      </div>
+
+      {/* ── Navigation ── */}
+      <div className="wizard-nav">
+        {step > 1 && (
+          <button key="back" type="button" className="wizard-back-btn" onClick={goBack}>
+            ← Back
           </button>
         )}
-      </form>
-      
-      <form>
+        {step < TOTAL_STEPS ? (
+          <button key="next" type="button" className="wizard-next-btn" onClick={goNext}>
+            Next →
+          </button>
+        ) : (
+          <button key="submit" type="submit" form="wizard-form" className="wizard-submit-btn" disabled={submitting}>
+            {submitting ? "Submitting..." : "Submit Edit for Review"}
+          </button>
+        )}
+      </div>
+
       {showDeleteConfirm && (
         <div className="modal-overlay">
           <div className="modal-content">
             <h3 className="modal-header">Delete Business</h3>
             <p className="modal-paragraph">
-              Are you sure you want to delete this business? This action cannot be undone. 
+              Are you sure you want to delete this business? This action cannot be undone.
             </p>
-            
             <label className="modal-label">
-              Reason for deletion (optional):
+              Reason for deletion *
               <textarea
                 value={deleteReason}
                 onChange={(e) => setDeleteReason(e.target.value)}
@@ -900,14 +833,10 @@ export default function EditBusiness() {
                 maxLength={500}
               />
             </label>
-            
             <div className="modal-buttons">
               <button
                 type="button"
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  setDeleteReason("");
-                }}
+                onClick={() => { setShowDeleteConfirm(false); setDeleteReason(""); }}
                 disabled={deleting}
                 className="btn btn-secondary"
               >
@@ -925,7 +854,6 @@ export default function EditBusiness() {
           </div>
         </div>
       )}
-      </form>
     </div>
   );
 }

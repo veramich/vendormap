@@ -1,15 +1,38 @@
 import { useState, useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet'
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
+import { useSearchParams, Link } from 'react-router-dom';
 import L from 'leaflet';
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import { toStringArray, normalize, isZipCode, haversineMiles, configureLeafletDefaultIcon, MapsChooser, getOpenDaysFromHours } from '../src/utils';
+import { DAY_OPTIONS, RADIUS_OPTIONS } from '../src/constants';
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
+configureLeafletDefaultIcon();
+
+interface BusinessLocation {
+  location_id: string;
+  latitude: number;
+  longitude: number;
+  cross_street_1: string;
+  cross_street_2: string;
+  city: string;
+  state: string;
+  zip_code: number;
+  phones: string[] | null;
+  business_id: string;
+  business_name: string;
+  business_logo: string | null;
+  category_name: string;
+  category_icon: string;
+  category_color: string;
+}
+
+interface StarDisplayProps {
+  rating: number;
+  size?: number;
+}
 
 function createCustomIcon(color: string, icon: string) {
   return L.divIcon({
@@ -25,257 +48,206 @@ function createCustomIcon(color: string, icon: string) {
   });
 }
 
-interface BusinessLocation {
-  location_id: string;
-  latitude: number;
-  longitude: number;
-  original_latitude?: number | null;
-  original_longitude?: number | null;
-  location_privacy?: string;
-  location_name: string | null;
-  cross_street_1: string;
-  cross_street_2: string;
-  city: string;
-  state: string;
-  zip_code: number;
-  phones: string[] | null;
-  business_id: string;
-  business_name: string;
-  business_logo: string | null;
-  category_name: string;
-  category_icon: string;
-  category_color: string;
-}
-
-interface PendingLocation {
-  lat: number;
-  lng: number;
-}
-
-async function snapToNearestIntersection(
-  lat: number,
-  lng: number
-): Promise<{ lat: number; lng: number }> {
-  try {
-    const res = await fetch("/api/snap-to-intersection", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ latitude: lat, longitude: lng }),
-    });
-    if (!res.ok) return { lat, lng };
-    const data = await res.json();
-    return { lat: data.latitude, lng: data.longitude };
-  } catch {
-    return { lat, lng };
-  }
-}
-
-function MapBoundsTracker({
-  locations,
-  onCountChange,
-}: {
-  locations: BusinessLocation[];
-  onCountChange: (count: number) => void;
-}) {
-  const map = useMapEvents({
-    moveend() { update(); },
-    zoomend() { update(); },
-  });
-
-  function update() {
-    const bounds = map.getBounds();
-    const count = locations.filter((loc) => {
-      const showExact =
-        loc.location_privacy === 'exact' &&
-        loc.original_latitude != null &&
-        loc.original_longitude != null;
-      const lat = showExact ? loc.original_latitude! : loc.latitude;
-      const lng = showExact ? loc.original_longitude! : loc.longitude;
-      return bounds.contains(L.latLng(lat, lng));
-    }).length;
-    onCountChange(count);
-  }
-
-  useEffect(() => { update(); }, [locations]);
-
-  return null;
-}
-
-function MapClickHandler({
-  enabled,
-  onSelect,
-}: {
-  enabled: boolean;
-  onSelect: (location: PendingLocation) => void;
-}) {
-  useMapEvents({
-    click(event) {
-      if (!enabled) return;
-      onSelect({ lat: event.latlng.lat, lng: event.latlng.lng });
-    },
-  });
-
-  return null;
-}
-
-function MapViewController({ lat, lng }: { lat: number; lng: number }) {
+function MapNavigator({ flyTarget }: { flyTarget: { lat: number; lng: number } | null }) {
   const map = useMap();
+
   useEffect(() => {
-    map.flyTo([lat, lng], 17);
-  }, []);
-  return null;
-}
-
-function MapFlyTo({ lat, lng }: { lat: number; lng: number }) {
-  const map = useMap();
-  useEffect(() => {
-    map.flyTo([lat, lng], 14);
-  }, [lat, lng]); 
-  return null;
-}
-
-const DAY_OPTIONS = [
-  "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
-];
-
-const RADIUS_OPTIONS = [1, 5, 10, 25];
-
-function toStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string').map(s => s.trim()).filter(Boolean);
-  if (typeof value === 'string') {
-    const t = value.trim();
-    if (!t) return [];
-    if (t.startsWith('[') && t.endsWith(']')) {
-      try { const p = JSON.parse(t); if (Array.isArray(p)) return p.filter((v): v is string => typeof v === 'string').map(s => s.trim()).filter(Boolean); } catch {}
+    if (flyTarget) {
+      const currentCenter = map.getCenter();
+      const dist = map.distance(
+        [currentCenter.lat, currentCenter.lng],
+        [flyTarget.lat, flyTarget.lng]
+      );
+      if (dist < 300) {
+        map.setView([flyTarget.lat, flyTarget.lng], 16);
+      } else {
+        map.flyTo([flyTarget.lat, flyTarget.lng], 16, { duration: 1.5 });
+      }
     }
-    return t.split(/,|\||\//).map(s => s.trim()).filter(Boolean);
-  }
-  return [];
+  }, [flyTarget, map]);
+
+  return null;
 }
 
-function normalize(text: string): string {
-  return text.trim().toLowerCase();
+function StarDisplay({ rating, size = 16 }: StarDisplayProps) {
+  return (
+    <div className="star-display" style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <span
+          key={star}
+          className={star <= rating ? 'star-filled' : 'star-empty'}
+          style={{
+            fontSize: `${size}px`,
+            lineHeight: 1,
+          }}
+        >
+          {star <= rating ? '★' : '☆'}
+        </span>
+      ))}
+      <span style={{ marginLeft: '4px', fontSize: `${size - 2}px`, color: '#666' }}>
+        ({rating}/5)
+      </span>
+    </div>
+  );
 }
 
-function isZipCode(value: string): boolean {
-  return /^\d{5}$/.test(value.trim());
-}
-
-function haversineMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 3958.8;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 export default function HomePage({
   defaultCenter = [33.978371, -118.225212],
-  defaultZoom = 13,
+  defaultZoom = 15,
 }: {
   defaultCenter?: [number, number];
   defaultZoom?: number;
 }) {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+
+
+  // Data state
   const [locations, setLocations] = useState<BusinessLocation[]>([]);
   const [businessDays, setBusinessDays] = useState<Map<string, string[]>>(new Map());
+  const [businessKeywords, setBusinessKeywords] = useState<Map<string, string[]>>(new Map());
+  const [businessAmenities, setBusinessAmenities] = useState<Map<string, string[]>>(new Map());
+  const [businessRatings, setBusinessRatings] = useState<Map<string, number>>(new Map());
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
+  
+  // Loading and error state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAddMode, setIsAddMode] = useState(searchParams.get('addMode') === '1');
-  const [pendingLocation, setPendingLocation] = useState<PendingLocation | null>(null);
-  const [isSnapping, setIsSnapping] = useState(false);
-  const [locationOutsideUS, setLocationOutsideUS] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(0);
 
+  // Search and filtering state
   const [searchQuery, setSearchQuery] = useState('');
-  const [locationSearchLoading, setLocationSearchLoading] = useState(false);
+
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedDay, setSelectedDay] = useState('');
+  const [selectedAmenity, setSelectedAmenity] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Map state
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
   const [radiusMiles, setRadiusMiles] = useState(5);
   const [zipCenter, setZipCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [zipGeocoding, setZipGeocoding] = useState(false);
   const [zipError, setZipError] = useState<string | null>(null);
+  
 
-  const [businessKeywords, setBusinessKeywords] = useState<Map<string, string[]>>(new Map());
-  const [businessAmenities, setBusinessAmenities] = useState<Map<string, string[]>>(new Map());
-
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedDay, setSelectedDay] = useState('');
-  const [selectedAmenity, setSelectedAmenity] = useState('');
-
+  // URL params for view navigation
   const viewLat = searchParams.get('viewLat');
   const viewLng = searchParams.get('viewLng');
   const viewLocation = viewLat && viewLng ? { lat: Number(viewLat), lng: Number(viewLng) } : null;
 
 
+  // Load initial data
   useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setError(null);
     Promise.all([
       fetch("/api/locations"),
       fetch("/api/businesses"),
+      fetch("/api/ratings"),
     ])
-      .then(async ([locRes, bizRes]) => {
+      .then(async ([locRes, bizRes, ratingsRes]) => {
         if (!locRes.ok) throw new Error(`Server error: ${locRes.status}`);
         if (!bizRes.ok) throw new Error(`Server error: ${bizRes.status}`);
         const [locData, bizData] = await Promise.all([locRes.json(), bizRes.json()]);
-        setLocations(locData);
         const daysMap = new Map<string, string[]>();
         const keywordsMap = new Map<string, string[]>();
         const amenitiesMap = new Map<string, string[]>();
+        const ratingsMap = new Map<string, number>();
         for (const biz of bizData) {
-          daysMap.set(biz.id, toStringArray(biz.days_open));
+          daysMap.set(biz.id, getOpenDaysFromHours(biz.business_hours));
           keywordsMap.set(biz.id, toStringArray(biz.keywords));
           amenitiesMap.set(biz.id, toStringArray(biz.amenities));
         }
+        if (ratingsRes.ok) {
+          const ratingsData = await ratingsRes.json();
+          for (const rating of ratingsData) {
+            ratingsMap.set(rating.business_id, rating.average_rating || 0);
+          }
+        }
+        if (!mounted) return;
+        setLocations(locData);
         setBusinessDays(daysMap);
         setBusinessKeywords(keywordsMap);
         setBusinessAmenities(amenitiesMap);
+        setBusinessRatings(ratingsMap);
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Failed to load map locations:", err);
+        if (!mounted) return;
         setError(`Could not load locations: ${err.message}`);
         setLoading(false);
       });
+    return () => { mounted = false; };
+  }, [lastRefresh]);
+
+  
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        setLastRefresh(Date.now());
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Auto-geocode zip codes as user types
   useEffect(() => {
     const q = searchQuery.trim();
-    if (!isZipCode(q)) {
+    if (!q) {
       setZipCenter(null);
       setZipError(null);
       return;
     }
     let cancelled = false;
-    setZipGeocoding(true);
-    setZipError(null);
     const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/location-search?q=${encodeURIComponent(q + ", USA")}`);
-        const data = await res.json();
-        if (cancelled) return;
-        if (!res.ok || !Array.isArray(data) || data.length === 0) {
-          setZipError("Zip code not found.");
-          setZipCenter(null);
-        } else {
-          setZipCenter({ lat: data[0].latitude, lng: data[0].longitude });
-          setFlyTarget({ lat: data[0].latitude, lng: data[0].longitude });
+      if (isZipCode(q)) {
+        setZipGeocoding(true);
+        setZipError(null);
+        try {
+          const res = await fetch(`/api/location-search?q=${encodeURIComponent(q + ", USA")}`);
+          const data = await res.json();
+          if (cancelled) return;
+          if (!res.ok || !Array.isArray(data) || data.length === 0) {
+            setZipError("Zip code not found.");
+            setZipCenter(null);
+          } else {
+            setZipCenter({ lat: data[0].latitude, lng: data[0].longitude });
+            setFlyTarget({ lat: data[0].latitude, lng: data[0].longitude });
+          }
+        } catch {
+          if (!cancelled) { setZipError("Could not look up zip code."); setZipCenter(null); }
+        } finally {
+          if (!cancelled) setZipGeocoding(false);
         }
-      } catch {
-        if (!cancelled) { setZipError("Could not look up zip code."); setZipCenter(null); }
-      } finally {
-        if (!cancelled) setZipGeocoding(false);
+      } else {
+        setZipCenter(null);
+        setZipError(null);
+        try {
+          const res = await fetch(`/api/location-search?q=${encodeURIComponent(q)}`);
+          const data = await res.json();
+          if (cancelled) return;
+          if (res.ok && Array.isArray(data) && data.length > 0) {
+            setFlyTarget({ lat: data[0].latitude, lng: data[0].longitude });
+          }
+        } catch {
+          // silently ignore location fly errors
+        }
       }
     }, 500);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [searchQuery]);
 
-    const categoryOptions = useMemo(() => {
+  // Handle URL-based navigation to specific coordinates
+  useEffect(() => {
+    if (viewLat && viewLng) {
+      setFlyTarget({ lat: Number(viewLat), lng: Number(viewLng) });
+    }
+  }, [viewLat, viewLng]);
+
+  const categoryOptions = useMemo(() => {
     const seen = new Set<string>();
     locations.forEach((loc) => { if (loc.category_name) seen.add(loc.category_name); });
     return [...seen].sort((a, b) => a.localeCompare(b));
@@ -293,7 +265,7 @@ export default function HomePage({
     const day = normalize(selectedDay);
     const amenity = normalize(selectedAmenity);
 
-    return locations.filter((loc) => {
+    const results = locations.filter((loc) => {
       if (category && normalize(loc.category_name) !== category) return false;
 
       if (day) {
@@ -330,85 +302,66 @@ export default function HomePage({
 
       return true;
     });
+
+    // Group by exact lat/lng and spread duplicates in a small circle (~8m radius)
+    const coordCount = new Map<string, number>();
+    const coordIndex = new Map<string, number>();
+    for (const loc of results) {
+      const key = `${loc.latitude},${loc.longitude}`;
+      coordCount.set(key, (coordCount.get(key) ?? 0) + 1);
+    }
+
+    const OFFSET_RADIUS = 0.00008;
+    return results.map((loc) => {
+      const key = `${loc.latitude},${loc.longitude}`;
+      const total = coordCount.get(key)!;
+      if (total === 1) return loc;
+      const idx = coordIndex.get(key) ?? 0;
+      coordIndex.set(key, idx + 1);
+      const angle = (2 * Math.PI * idx) / total;
+      return {
+        ...loc,
+        latitude: Number(loc.latitude) + OFFSET_RADIUS * Math.cos(angle),
+        longitude: Number(loc.longitude) + OFFSET_RADIUS * Math.sin(angle),
+      };
+    });
   }, [locations, businessDays, businessKeywords, businessAmenities, searchQuery, zipCenter, radiusMiles, selectedCategory, selectedDay, selectedAmenity]);
 
-    const mapCenter: [number, number] = locations.length > 0
-    ? [
-        locations.reduce((sum, loc) => sum + loc.latitude, 0) / locations.length,
-        locations.reduce((sum, loc) => sum + loc.longitude, 0) / locations.length,
-      ]
-    : defaultCenter;
-
-    function startAddMode() {
-      setIsAddMode(true);
-      setPendingLocation(null);
-    }
-
-    function stopAddMode() {
-      setIsAddMode(false);
-      setPendingLocation(null);
-      setLocationOutsideUS(false);
-    }
-
-    function handleMapPick(location: PendingLocation) {
-      setLocationOutsideUS(false);
-      setPendingLocation(location);
-      setIsSnapping(true);
-      snapToNearestIntersection(location.lat, location.lng).then((snapped) => {
-        setPendingLocation(snapped);
-        setIsSnapping(false);
-        fetch(`/api/locations/validate-location?lat=${snapped.lat.toFixed(6)}&lng=${snapped.lng.toFixed(6)}`)
-          .then((res) => res.json())
-          .then((data) => { if (!data.valid) setLocationOutsideUS(true); })
-          .catch(() => { /* Network error — don't block the user */ });
-      });
-    }
-
-    function handleAddBusiness() {
-      if (!pendingLocation) return;
-      const params = new URLSearchParams({
-        lat: pendingLocation.lat.toFixed(6),
-        lng: pendingLocation.lng.toFixed(6),
-      });
-      navigate(`/add-business?${params.toString()}`);
-    }
-
-    async function handleLocationSearch(e: React.FormEvent) {
-      e.preventDefault();
-      const q = searchQuery.trim();
-      if (!q) return;
-      try {
-        const res = await fetch(`/api/location-search?q=${encodeURIComponent(q)}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Search failed');
-        if (!Array.isArray(data) || data.length === 0) {
-          return;
-        }
-        setFlyTarget({ lat: data[0].latitude, lng: data[0].longitude });
-      } catch (err) {
-      } finally {
-        setLocationSearchLoading(false);
-      }
-    }
-
+  {/* Render logic */}
+  if (loading) {
     return (
+      <div>
+        <div>Loading locations...</div>
+        <div></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div>
+        <div>Error loading map data</div>
+        <div>{error}</div>
+        <button onClick={() => window.location.reload()}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
       <>
         <div className="search-container">
-          <form onSubmit={handleLocationSearch}>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, keywords, amenities, city, state, or zip..."
-            />
-            <button type="submit" disabled={locationSearchLoading}>
-              {locationSearchLoading ? 'Searching...' : 'Go'}
-            </button>
-          </form>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, keywords, amenities, city, state, or zip..."
+          />
           <button
             type="button"
             onClick={() => setShowFilters((prev) => !prev)}
-            className={`businesses-list-filter-button${showFilters ? ' active' : ''}`}
+            aria-label="Toggle filters"
           >
             <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true">
               <path d="M1 2h12L8 7v4l-2 1V7L1 2z" fill="currentColor" />
@@ -419,6 +372,9 @@ export default function HomePage({
 
         {zipGeocoding && (
           <p className="businesses-list-geocoding-message">Looking up zip code...</p>
+        )}
+        {loading && locations.length > 0 && (
+          <p className="businesses-list-geocoding-message">Refreshing map data...</p>
         )}
         {zipError && (
           <p className="businesses-list-error-message">{zipError}</p>
@@ -493,42 +449,23 @@ export default function HomePage({
         )}
 
         <div className="map-wrapper">
-        <MapContainer center={mapCenter} zoom={locations.length > 0 ? defaultZoom : defaultZoom - 1}
+          <MapContainer attributionControl={false} center={viewLocation ? [viewLocation.lat, viewLocation.lng] : defaultCenter} zoom={locations.length > 0 ? defaultZoom : defaultZoom - 1}
           scrollWheelZoom={true}>
-            <MapClickHandler enabled={isAddMode} onSelect={handleMapPick} />
-            <MapBoundsTracker locations={filteredLocations} onCountChange={setVisibleCount} />
-            {flyTarget && <MapFlyTo lat={flyTarget.lat} lng={flyTarget.lng} />}
-            {viewLocation && (
-              <>
-                <MapViewController key={`${viewLat}-${viewLng}`} lat={viewLocation.lat} lng={viewLocation.lng} />
-              </>
-            )}
-            <TileLayer                
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                url='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-                subdomains = 'abcd'
-            />  
+            <TileLayer
+              url='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+              subdomains = 'abcd'
+            />
+            <MapNavigator flyTarget={flyTarget} />
                                
+            <MarkerClusterGroup chunkedLoading disableClusteringAtZoom={14}>
             {filteredLocations.map((loc) => {
-              const showExact =
-                loc.location_privacy === "exact" &&
-                loc.original_latitude != null &&
-                loc.original_longitude != null;
-              const pinLat = showExact ? loc.original_latitude! : loc.latitude;
-              const pinLng = showExact ? loc.original_longitude! : loc.longitude;
-              const coordinates = `${loc.latitude},${loc.longitude}`;
-              
-              const address = `${loc.cross_street_1} & ${loc.cross_street_2}, ${loc.city}, ${loc.state} ${loc.zip_code}`;
+              const address = `${loc.cross_street_1} & ${loc.cross_street_2}, ${loc.city}, ${loc.state}`;
               const businessQuery = `${loc.business_name}, ${address}`;
-              
-              const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessQuery)}`;
-              
-              const appleMapsUrl = `https://maps.apple.com/?q=${encodeURIComponent(loc.business_name)}&ll=${coordinates}&z=16`;
-              
+
               return (
                 <Marker
                 key={loc.location_id}
-                position={[pinLat, pinLng]}
+                position={[loc.latitude, loc.longitude]}
                 icon={createCustomIcon(loc.category_color, loc.category_icon)}>
                 <Popup className="popup-container">
                   <div className="popup-header">
@@ -537,91 +474,38 @@ export default function HomePage({
                     )}
                     <div>
                       <h3>{loc.business_name}</h3>
-                      <p>{loc.location_name}</p>
                     </div>
                   </div>
-                  
+
                   <div>
-    
                   <p>
                     📍 {loc.cross_street_1} & {loc.cross_street_2}<br />
-              
                   </p>
+
+                  {businessRatings.has(loc.business_id) && businessRatings.get(loc.business_id)! > 0 && (
+                    <div style={{ margin: '8px 0' }}>
+                      <StarDisplay rating={businessRatings.get(loc.business_id)!} size={14} />
+                    </div>
+                  )}
+
                   <Link to={`/locations/${loc.location_id}`}>View Details →</Link> <br />
-                  <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">Open in Google Maps  →</a> <br />
-                  <a href={appleMapsUrl} target="_blank" rel="noopener noreferrer">Open in Apple Maps  → </a>
-                  
+                  <MapsChooser lat={loc.latitude} lng={loc.longitude} query={businessQuery}>Open in Maps →</MapsChooser>
+
                   </div>
                 </Popup>
               </Marker>
               );
             })}
-
-            {pendingLocation && (
-              <Marker position={[pendingLocation.lat, pendingLocation.lng]}>
-                <Popup className="popup-container">
-                  <div>
-                    {locationOutsideUS ? (
-                      <>
-                        <strong>Outside US Boundaries</strong><br />
-                        <small>VendorMap only supports businesses in the United States. Please select a different location.</small>
-                      </>
-                    ) : (
-                      <>
-                        <strong>Add Business Here?</strong><br />
-                        <small>For owner's safety and privacy concerns, map pin will show the closest cross streets.</small>
-                        <button type="button" onClick={handleAddBusiness}>
-                          Add business here
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </Popup>
-              </Marker>
-            )}
+            </MarkerClusterGroup>
         </MapContainer>
 
         </div>
-        <div className="map-footer">
-          {!loading && !error && locations.length > 0 && (
-            <div>
-              📍 {visibleCount} location{visibleCount !== 1 ? "s" : ""} in view
-            </div>
-          )}
-
-          {error && (
-              <div className="map-error">
-                  <strong>Error:</strong> {error}
-              </div>
-          )}
-
-          {!loading && !error && locations.length === 0 && (
-              <div>
-                  <p className="map-empty-text">
-                  No locations to display yet
-                  </p>
-              </div>
-          )}
-
-          {!isAddMode ? (
-          <>
-            <button type="button" onClick={startAddMode}>
-              Add a Business
-            </button>
-          </>
-          ) : (
-            <>
-              <p>
-                {isSnapping
-                  ? "Snapping to nearest intersection..."
-                  : "Click on the map to place a temporary marker."
-                }
-              </p>
-              <button type="button" onClick={stopAddMode}>
-                Exit Add a Business Mode
-              </button>
-            </>
-          )}
+        
+        <div className="map-footer">          
+          <div className="map-attribution">
+            &copy;<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy;<a href="https://carto.com/attributions">CARTO</a>
+            Powered by 🇺🇦<a href="https://leafletjs.com/">Leaflet</a> 
+          </div>
         </div>
         </>
     );

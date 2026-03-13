@@ -10,6 +10,12 @@ const s3 = new S3Client({
   },
 });
 
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+  'image/heic', 'image/heif',
+]);
+const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+
 /**
  * Upload a multer file buffer to Cloudflare R2.
  * @param {Express.Multer.File} file - Multer file object (memory storage)
@@ -17,7 +23,11 @@ const s3 = new S3Client({
  * @returns {Promise<string>} Full public URL of the uploaded file
  */
 export async function uploadFile(file, folder = '') {
-  const ext = path.extname(file.originalname);
+  const ext = path.extname(file.originalname).toLowerCase();
+
+  if (!ALLOWED_MIME_TYPES.has(file.mimetype) || !ALLOWED_EXTENSIONS.has(ext)) {
+    throw new Error(`Invalid file type. Allowed types: JPEG, PNG, WebP, GIF`);
+  }
   const safeName = file.originalname
     .replace(ext, '')
     .replace(/[^a-zA-Z0-9-]/g, '_')

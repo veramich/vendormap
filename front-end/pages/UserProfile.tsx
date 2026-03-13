@@ -34,6 +34,7 @@ interface UserBusiness {
     created_at: string;
     reviewed_at: string | null;
     category_name: string | null;
+    primary_location_id: string | null;
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -139,7 +140,12 @@ export default function UserProfile() {
     }
 
     if (isLoading) return <p>Loading...</p>;
-    if (!user) return <p>Please <a href="/login">log in</a> to view your profile.</p>;
+    if (!user) return (
+        <>
+            <h1>Profile</h1>      
+            <p>Seems like you're not logged in. To view your profile, please <a href="/login">log in</a> or <a href="/create-account">sign up</a> here.</p>
+        </>
+    );
 
     return (
         <div className="user-profile-container">
@@ -219,7 +225,10 @@ export default function UserProfile() {
                             <div key={b.id} className="card">
                                 <div className="card-header">
                                     <div>
-                                        <span className="business-name">{b.name}</span>
+                                        {b.moderation_status === 'approved' && b.primary_location_id
+                                            ? <Link to={`/locations/${b.primary_location_id}`} className="business-name review-link">{b.name}</Link>
+                                            : <span className="business-name">{b.name}</span>
+                                        }
                                         {b.category_name && <span className="category-name">{b.category_name}</span>}
                                     </div>
                                     <span className="status-badge" style={{ color: status.color }}>

@@ -3,11 +3,8 @@ import cors from "cors";
 import "dotenv/config";
 import businessesRoutes from "./businesses.routes.js";
 import admin from 'firebase-admin';
-import fs from 'fs'
 
-const credentials = JSON.parse(
-  fs.readFileSync('./credentials.json', 'utf-8')
-)
+const credentials = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
 admin.initializeApp({
   credential: admin.credential.cert(credentials)
 });

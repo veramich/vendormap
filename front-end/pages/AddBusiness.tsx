@@ -1,6 +1,20 @@
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, type FormEvent } from "react";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 import useUser from "../src/useUser";
+import { generateUUID, capitalizeWords, configureLeafletDefaultIcon, normalize } from "../src/utils";
+import { US_STATES } from "../src/constants";
+import { HoursEditor } from "../src/components/HoursEditor";
+import type { BusinessHours } from "../src/components/HoursEditor";
+import { AmenitiesEditor } from "../src/components/AmenitiesEditor";
+
+configureLeafletDefaultIcon();
+
+function MapRecenter({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  useEffect(() => { map.setView([lat, lng], 16); }, [lat, lng, map]);
+  return null;
+}
 
 interface Category {
   id: number;
@@ -10,22 +24,6 @@ interface Category {
   color: string;
 }
 
-interface HourPeriod {
-  id: string;
-  open: string;
-  close: string;
-  closes_next_day: boolean;
-}
-
-interface DayHours {
-  closed: boolean;
-  open_24_hours: boolean;
-  periods: HourPeriod[];
-}
-
-type DayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-type BusinessHours = { always_open: boolean; weekly_hours_on_website: boolean } & Record<DayIndex, DayHours>;
-
 interface Location {
   id: string;
   location_name: string;
@@ -33,16 +31,16 @@ interface Location {
   cross_street_2: string;
   city: string;
   state: string;
+  zip?: string;
   latitude: number | null;
   longitude: number | null;
-  original_latitude: number | null;
-  original_longitude: number | null;
-  location_snapped: boolean;
-  geocode_source: string | null;
-  snap_distance_meters: number | null;
   phones: string[];
   location_privacy: "exact" | "intersection" | "grid";
-  business_hours: BusinessHours;
+  approximate?: boolean;
+  always_open: boolean;
+  weekly_hours_on_website: boolean;
+  subject_to_change: boolean;
+  business_hours: BusinessHours | null;
   images: File[];
   image_count?: number;
 }
@@ -61,36 +59,8 @@ interface BusinessFormData {
   logo: File | null;
 }
 
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
-const DAYS = [0, 1, 2, 3, 4, 5, 6] as const;
-
-const DEFAULT_HOUR_PERIOD = (): HourPeriod => ({
-  id: crypto.randomUUID(),
-  open: "09:00",
-  close: "17:00",
-  closes_next_day: false,
-});
-
-const DEFAULT_DAY_HOURS = (): DayHours => ({
-  closed: false,
-  open_24_hours: false,
-  periods: [DEFAULT_HOUR_PERIOD()],
-});
-
-const DEFAULT_HOURS = (): BusinessHours => ({
-  always_open: false,
-  weekly_hours_on_website: false,
-  0: { closed: true, open_24_hours: false, periods: [] },                 // Sunday
-  1: DEFAULT_DAY_HOURS(),                                                  // Monday
-  2: DEFAULT_DAY_HOURS(),                                                  // Tuesday
-  3: DEFAULT_DAY_HOURS(),                                                  // Wednesday
-  4: DEFAULT_DAY_HOURS(),                                                  // Thursday
-  5: DEFAULT_DAY_HOURS(),                                                  // Friday
-  6: { closed: false, open_24_hours: false, periods: [{ id: crypto.randomUUID(), open: "10:00", close: "15:00", closes_next_day: false }] }, // Saturday
-});
-
 const DEFAULT_LOCATION = (): Location => ({
-  id: crypto.randomUUID(),
+  id: generateUUID(),
   location_name: "",
   cross_street_1: "",
   cross_street_2: "",
@@ -98,47 +68,19 @@ const DEFAULT_LOCATION = (): Location => ({
   state: "",
   latitude: null,
   longitude: null,
-  original_latitude: null,
-  original_longitude: null,
-  location_snapped: false,
-  geocode_source: null,
-  snap_distance_meters: null,
   phones: [],
   location_privacy: "intersection",
-  business_hours: DEFAULT_HOURS(),
+  always_open: false,
+  weekly_hours_on_website: false,
+  subject_to_change: false,
+  business_hours: null,
   images: [],
 });
 
-const US_STATES = [
-  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN",
-  "IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV",
-  "NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN",
-  "TX","UT","VT","VA","WA","WV","WI","WY",
-]; 
-
-const COMMON_AMENITIES = {
-  "Business Types": [
-    "Home Based", "Sidewalk Based", "Food Truck", "Farmer's Market", "Pop Ups", "Catering", "Private Events", "Farmer's Market Only"
-  ],
-  "Ordering Methods": [
-    "DM To Order", "Text To Order", "Call To Order", "Order Online", "Walk-Up Orders", "Order Ahead", "Pre-Order Required", "No Walk-Ins", "Time-Slot Reservations"
-  ],
-  "Payment Options": [
-    "Cash Only", "Cash Preferred", "Tap To Pay", "Credit Cards", "Cash App", "Zelle", "Venmo"
-  ],
-  "Dietary Options": [
-    "Vegan Options", "Vegetarian Options", "Gluten-Free Options", "Halal Options", "Kosher Options", "Locally Sourced Ingredients", "Organic Options"
-  ],
-  "Accessibility": [
-    "Curbside Pickup", "Delivery", "US Shipping", "International Shipping", "Street Parking", "Parking Lot", "Wheelchair Accessible", "Outdoor Seating", "Restrooms"
-  ]
-};
-
-const ALL_COMMON_AMENITIES = Object.values(COMMON_AMENITIES).flat();
+const TOTAL_STEPS = 4;
+const STEP_LABELS = ["Business Info", "Location", "Hours", "Details"];
 
 export default function AddBusiness() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { user, isLoading } = useUser();
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState<BusinessFormData>({
@@ -155,40 +97,14 @@ export default function AddBusiness() {
     logo: null,
   });
   const [keywordInput, setKeywordInput] = useState("");
-  const [amenityInput, setAmenityInput] = useState("");
   const [websiteInput, setWebsiteInput] = useState("");
+  const [geocodingIndex, setGeocodingIndex] = useState<number | null>(null);
+  const [geocodeErrors, setGeocodeErrors] = useState<Record<number, string>>({});
+  const [geocodeAttempts, setGeocodeAttempts] = useState<Record<number, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [outsideUS, setOutsideUS] = useState(false);
-
-
-  const lat = searchParams.get("lat");
-  const lng = searchParams.get("lng")
-
-
-
-  useEffect(() => {
-    if (lat && lng) {
-      const parsedLat = Number(lat);
-      const parsedLng = Number(lng);
-
-      if (!Number.isNaN(parsedLat) && !Number.isNaN(parsedLng)) {
-        fetch(`/api/locations/validate-location?lat=${parsedLat}&lng=${parsedLng}`)
-          .then(response => response.json())
-          .then(data => {
-            if (!data.valid) {
-              setOutsideUS(true);
-            }
-          })
-          .catch((error) => {
-            console.warn('Location validation failed:', error);
-          });
-      }
-    }
-  }, [lat, lng]);
-
-
+  const [step, setStep] = useState<number>(1);
 
   useEffect(() => {
     fetch("/api/categories")
@@ -197,81 +113,8 @@ export default function AddBusiness() {
       .catch(console.error);
   }, []);
 
-    const selectedLocation = useMemo(() => {
-    const lat = searchParams.get("lat");
-    const lng = searchParams.get("lng");
-
-    if (!lat || !lng) return null;
-
-    const parsedLat = Number(lat);
-    const parsedLng = Number(lng);
-
-    if (Number.isNaN(parsedLat) || Number.isNaN(parsedLng)) return null;
-    
-    return { lat: parsedLat, lng: parsedLng };
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (!selectedLocation) {
-      navigate('/', { replace: true });
-    }
-  }, [selectedLocation, navigate]);
-
-  useEffect(() => {
-    if (selectedLocation && form.locations.length > 0 && !form.locations[0].latitude) {
-      const autoFillAddress = async () => {
-        let snappedLat = selectedLocation.lat;
-        let snappedLng = selectedLocation.lng;
-        let originalLat: number | null = null;
-        let originalLng: number | null = null;
-        let locationSnapped = false;
-        let geocodeSource: string | null = null;
-        let snapDistanceMeters: number | null = null;
-
-        try {
-          const snapRes = await fetch("/api/snap-to-intersection", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              latitude: selectedLocation.lat,
-              longitude: selectedLocation.lng,
-            }),
-          });
-          if (snapRes.ok) {
-            const snapData = await snapRes.json();
-            snappedLat = snapData.latitude;
-            snappedLng = snapData.longitude;
-            originalLat = snapData.original_latitude;
-            originalLng = snapData.original_longitude;
-            locationSnapped = true;
-            geocodeSource = snapData.geocode_source || "map_snap";
-            snapDistanceMeters = snapData.snap_distance_meters ?? null;
-          }
-        } catch (_) {
-          originalLat = selectedLocation.lat;
-          originalLng = selectedLocation.lng;
-        }
-
-        updateLocation(0, {
-          ...form.locations[0],
-          latitude: snappedLat,
-          longitude: snappedLng,
-          original_latitude: originalLat,
-          original_longitude: originalLng,
-          location_snapped: locationSnapped,
-          geocode_source: geocodeSource,
-          snap_distance_meters: snapDistanceMeters,
-        });
-
-
-      };
-
-      autoFillAddress();
-    }
-  }, [selectedLocation]);
-
   const addKeyword = () => {
-    const trimmed = keywordInput.trim().toLowerCase();
+    const trimmed = normalize(keywordInput);
     if (trimmed && !form.keywords.includes(trimmed) && form.keywords.length < 10) {
       setForm({ ...form, keywords: [...form.keywords, trimmed] });
       setKeywordInput("");
@@ -282,11 +125,9 @@ export default function AddBusiness() {
     setForm({ ...form, keywords: form.keywords.filter((k) => k !== kw) });
   };
 
-  const addAmenity = (amenity?: string) => {
-    const toAdd = amenity || amenityInput.trim();
-    if (toAdd && !form.amenities.includes(toAdd) && form.amenities.length < 20) {
-      setForm({ ...form, amenities: [...form.amenities, toAdd] });
-      setAmenityInput("");
+  const addAmenity = (amenity: string) => {
+    if (amenity && !form.amenities.includes(amenity) && form.amenities.length < 20) {
+      setForm({ ...form, amenities: [...form.amenities, amenity] });
     }
   };
 
@@ -322,8 +163,8 @@ export default function AddBusiness() {
   const handleLocationImageUpload = (locationIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newImages = Array.from(e.target.files).slice(0, 3);
-      const updatedLocations = form.locations.map((location, index) => 
-        index === locationIndex 
+      const updatedLocations = form.locations.map((location, index) =>
+        index === locationIndex
           ? { ...location, images: [...location.images, ...newImages].slice(0, 3) }
           : location
       );
@@ -332,67 +173,132 @@ export default function AddBusiness() {
   };
 
   const removeLocationImage = (locationIndex: number, imageIndex: number) => {
-    const updatedLocations = form.locations.map((location, index) => 
-      index === locationIndex 
+    const updatedLocations = form.locations.map((location, index) =>
+      index === locationIndex
         ? { ...location, images: location.images.filter((_, i) => i !== imageIndex) }
         : location
     );
     setForm({ ...form, locations: updatedLocations });
   };
 
-  const addLocation = () => {
-    setForm({ ...form, locations: [...form.locations, DEFAULT_LOCATION()] });
-  };
-
   const updateLocation = (index: number, loc: Location) => {
-    const locations = [...form.locations];
-    locations[index] = loc;
-    setForm({ ...form, locations });
-  };
-
-  const updateLocationHours = (locationIndex: number, hours: BusinessHours) => {
-    const locations = [...form.locations];
-    locations[locationIndex] = { ...locations[locationIndex], business_hours: hours };
-    setForm({ ...form, locations });
-  };
-
-  const updateDayHours = (locationIndex: number, day: DayIndex, updates: Partial<DayHours>) => {
-    const loc = form.locations[locationIndex];
-    const updatedHours = {
-      ...loc.business_hours,
-      [day]: { ...loc.business_hours[day], ...updates },
-    };
-    updateLocationHours(locationIndex, updatedHours as BusinessHours);
-  };
-
-  const addHourPeriod = (locationIndex: number, day: DayIndex) => {
-    const loc = form.locations[locationIndex];
-    const dayHours = loc.business_hours[day];
-    const newPeriod = DEFAULT_HOUR_PERIOD();
-    updateDayHours(locationIndex, day, {
-      periods: [...dayHours.periods, newPeriod],
+    setForm(prev => {
+      const locations = [...prev.locations];
+      locations[index] = loc;
+      return { ...prev, locations };
     });
   };
 
-  const updateHourPeriod = (locationIndex: number, day: DayIndex, periodId: string, updates: Partial<HourPeriod>) => {
-    const loc = form.locations[locationIndex];
-    const dayHours = loc.business_hours[day];
-    const updatedPeriods = dayHours.periods.map(period =>
-      period.id === periodId ? { ...period, ...updates } : period
-    );
-    updateDayHours(locationIndex, day, { periods: updatedPeriods });
-  };
-
-  const removeHourPeriod = (locationIndex: number, day: DayIndex, periodId: string) => {
-    const loc = form.locations[locationIndex];
-    const dayHours = loc.business_hours[day];
-    if (dayHours.periods.length > 1) {
-      const updatedPeriods = dayHours.periods.filter(period => period.id !== periodId);
-      updateDayHours(locationIndex, day, { periods: updatedPeriods });
+  const geocodeLocation = async (locationIndex: number, loc: Location) => {
+    // Can geocode with either: all 4 fields OR just cross streets + state (will auto-populate city)
+    const hasCrossStreetsAndState = loc.cross_street_1.trim() && loc.cross_street_2.trim() && loc.state;
+    const hasCity = loc.city.trim();
+    
+    if (!hasCrossStreetsAndState) return;
+    
+    setGeocodingIndex(locationIndex);
+    setGeocodeErrors((prev) => { const next = { ...prev }; delete next[locationIndex]; return next; });
+    setGeocodeAttempts((prev) => ({ ...prev, [locationIndex]: (prev[locationIndex] ?? 0) + 1 }));
+    try {
+      const params = new URLSearchParams({
+        cross_street_1: loc.cross_street_1.trim(),
+        cross_street_2: loc.cross_street_2.trim(),
+        state: loc.state,
+      });
+      
+      // Only include city if it's provided
+      if (hasCity) {
+        params.set('city', loc.city.trim());
+      }
+      if (loc.zip?.trim()) {
+        params.set('zip', loc.zip.trim());
+      }
+      
+      const res = await fetch(`/api/geocode?${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not find location");
+      
+      // Update location with coordinates and city (if city was auto-populated)
+      const updates: Partial<Location> = {
+        latitude: data.latitude,
+        longitude: data.longitude,
+        approximate: data.approximate ?? false,
+      };
+      
+      // If we got a city back from geocoding and current city is empty, auto-populate it
+      if (data.city && !hasCity) {
+        updates.city = data.city;
+      }
+      // Auto-populate zip if not already set
+      if (data.zip && !loc.zip?.trim()) {
+        updates.zip = data.zip;
+      }
+      
+      updateLocation(locationIndex, { ...loc, ...updates });
+    } catch (err: any) {
+      updateLocation(locationIndex, { ...loc, latitude: null, longitude: null });
+      setGeocodeErrors((prev) => ({ ...prev, [locationIndex]: err.message || "Geocoding failed" }));
+    } finally {
+      setGeocodingIndex(null);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const MAX_GEOCODE_ATTEMPTS = 1;
+
+  // Reset attempt counter when the user changes address fields
+  const locationAddressKey = form.locations
+    .map((l) => `${l.cross_street_1}|${l.cross_street_2}|${l.state}|${l.zip ?? ''}`)
+    .join(';');
+  useEffect(() => {
+    setGeocodeAttempts({});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationAddressKey]);
+
+  // Auto-geocode each location when cross streets + state are filled (debounced)
+  useEffect(() => {
+    if (step !== 2) return;
+    const timers = form.locations.map((loc, i) => {
+      if (!loc.cross_street_1.trim() || !loc.cross_street_2.trim() || !loc.state) return null;
+      if ((geocodeAttempts[i] ?? 0) >= MAX_GEOCODE_ATTEMPTS) return null;
+      return setTimeout(() => geocodeLocation(i, loc), 600);
+    });
+    return () => { timers.forEach((t) => t && clearTimeout(t)); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, locationAddressKey, geocodeAttempts]);
+
+  const validateStep = (step: number): string | null => {
+    if (step === 1) {
+      if (!form.name.trim()) return "Business name is required.";
+      if (!form.category_id) return "Please select a category.";
+    }
+    if (step === 2) {
+      for (let i = 0; i < form.locations.length; i++) {
+        const loc = form.locations[i];
+        if (!loc.cross_street_1.trim()) return "Cross Street 1 is required.";
+        if (!loc.cross_street_2.trim()) return "Cross Street 2 is required.";
+        if (!loc.state) return "State is required.";
+        if (geocodingIndex === i) return "Still finding coordinates. Please wait.";
+        if (!loc.latitude || !loc.longitude) return "Could not find map coordinates. Please check the cross streets and state.";
+      }
+    }
+    return null;
+  };
+
+  const goNext = () => {
+    const err = validateStep(step);
+    if (err) { setError(err); return; }
+    setError(null);
+    setStep((s) => Math.min(s + 1, TOTAL_STEPS));
+    window.scrollTo(0, 0);
+  };
+
+  const goBack = () => {
+    setError(null);
+    setStep((s) => Math.max(s - 1, 1));
+    window.scrollTo(0, 0);
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
@@ -405,18 +311,17 @@ export default function AddBusiness() {
       const token = await user.getIdToken();
 
       const formData = new FormData();
-      
-      // Prepare business data with image counts for each location
+
       const businessDataWithCounts = {
         ...form,
-        logo: undefined, // Remove logo from JSON
+        logo: undefined,
         locations: form.locations.map(location => ({
           ...location,
-          images: undefined, // Remove images from JSON  
+          images: undefined,
           image_count: location.images.length
         }))
       };
-      
+
       formData.append('business', JSON.stringify(businessDataWithCounts));
 
       if (form.logo) {
@@ -442,7 +347,6 @@ export default function AddBusiness() {
         const err = await response.json();
         throw new Error(err.error || "Submission failed");
       }
-
       setSubmitted(true);
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please try again.");
@@ -456,17 +360,21 @@ export default function AddBusiness() {
       <div>
         <h1>Business Submitted for Review!</h1>
         <p>
-          Thank you for submitting <strong>{form.name}</strong>. Your business listing 
-          is now pending approval from our team. You will be notified once it has been reviewed.
+          Thank you for submitting <strong>{form.name}</strong>. Your business listing
+          is now pending approval from our team.
+          {form.is_owner && (
+            <> Additionally, your ownership claim will be reviewed separately after the business is approved.</>
+          )}
+          {' '}You will be notified once it has been reviewed.
         </p>
         {!form.is_owner && (
           <p>
-            <strong>Note:</strong> You indicated that you are not the business owner. 
+            <strong>Note:</strong> You indicated that you are not the business owner.
             The actual owner can claim this business later once it's approved.
           </p>
         )}
         <p>
-          <button onClick={() => window.location.reload()}>Add Another Business</button>
+          <button onClick={() => window.location.href = '/add-business'}>Add Another Business</button>
         </p>
       </div>
     );
@@ -476,610 +384,406 @@ export default function AddBusiness() {
     return <div>Loading...</div>;
   }
 
-  if (outsideUS) {
-    return (
-      <div>
-        <h1>Location Outside the United States</h1>
-        <p>The selected location is outside the United States. VendorMap only supports businesses located within the US.</p>
-        <p><a href="/">Go back to the map</a> and select a location within the United States.</p>
-      </div>
-    );
-  }
-
   if (!user) {
     return (
       <div>
         <h1>Login Required</h1>
         <p>You must be logged in to add a business. Please log in and try again.</p>
       </div>
-    ); 
+    );
   }
 
   return (
-    <div>
-      <h1>Add a Business</h1>
-      <p>
-        Add a business here! All submissions are reviewed before 
-        being published. Please note that businesses must be located in the United States.
-      </p>
+    <div className="wizard-container">
+      <div className="wizard-scroll-area">
+        <h1>Add a Business</h1>
 
-      {error && (
-        <div>
-          <strong>Error:</strong> {error}
+        {/* Step indicator */}
+        <div className="wizard-steps">
+          {STEP_LABELS.map((label, i) => (
+            <div
+              key={i}
+              className={`wizard-step${step === i + 1 ? " active" : ""}${step > i + 1 ? " completed" : ""}`}
+            >
+              <div className="wizard-step-number">{step > i + 1 ? "✓" : i + 1}</div>
+              <div className="wizard-step-label">{label}</div>
+            </div>
+          ))}
         </div>
-      )}
 
-      <form onSubmit={handleSubmit}>
-        
-        <fieldset>
-          <legend>Business Information</legend>
-
-          <label>
-            Business Name *
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-          </label>
-
-          <label>
-            Category *
-            <select
-              value={form.category_id}
-              onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-              required
-            >
-              <option value="">Select a category</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.icon} {cat.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Description
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              rows={4}
-              maxLength={1000}
-              placeholder="Describe the business..."
-            />
-          </label>
-
-          <div>
-            <strong>Websites</strong>
-            
-            <label>
-              Add website URL
-              <input
-                type="url"
-                value={websiteInput}
-                onChange={(e) => setWebsiteInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addWebsite();
-                  }
-                }}
-                placeholder="https://example.com"
-              />
-              <button type="button" onClick={addWebsite}>
-                Add Another Website
-              </button>
-            </label>
-
-            {form.websites.length > 0 && (
-              <div>
-                <strong>Current websites:</strong>
-                {form.websites.map((url, i) => (
-                  <div key={i}>
-                    <input
-                      type="url"
-                      value={url}
-                      onChange={(e) => {
-                        const updated = [...form.websites];
-                        updated[i] = e.target.value;
-                        setForm({ ...form, websites: updated });
-                      }}
-                      onBlur={(e) => {
-                        const val = e.target.value.trim();
-                        if (val && !/^https?:\/\//i.test(val)) {
-                          const updated = [...form.websites];
-                          updated[i] = `https://${val}`;
-                          setForm({ ...form, websites: updated });
-                        }
-                      }}
-                      pattern="https?://[^\s]+\.[a-zA-Z]{2,}(/[^\s]*)?"
-                      title="URL must include a valid suffix (e.g. .com, .co, .org)"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeWebsite(i)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+        {error && (
+          <div className="wizard-error">
+            <strong>Error:</strong> {error}
           </div>
+        )}
 
-          <label>
-            Email
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="contact@business.com"
-            />
-          </label>
+        <form id="wizard-form" onSubmit={handleSubmit}>
+          {step === 1 && (
+            <>
+              {/* Step 1: Business Info */}
+              <fieldset>
+                <legend>Business Information</legend>
 
-          <label>
-            Are you the business owner? *
-            <select
-              value={form.is_owner ? "yes" : "no"}
-              onChange={(e) => setForm({ ...form, is_owner: e.target.value === "yes" })}
-              required
-            >
-              <option value="">Please select</option>
-              <option value="yes">Yes, I own this business</option>
-              <option value="no">No, I'm adding it for the community</option>
-            </select>
-          </label>
-          {!form.is_owner && (
-            <p>
-              <small>
-                The business owner can claim this listing later once it's approved.
-              </small>
-            </p>
-          )}
-
-          <label>
-            <input
-              type="checkbox"
-              checked={form.is_chain}
-              onChange={(e) => setForm({ ...form, is_chain: e.target.checked })}
-            />
-            This business has multiple locations
-          </label>
-        </fieldset>
-
-        <fieldset>
-          <legend>Business Logo</legend>
-          
-          {!form.logo && (
-            <label>
-              Upload business logo
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleLogoUpload}
-              />
-            </label>
-          )}
-
-          {form.logo && (
-            <div>
-              <span>{form.logo.name}</span>
-              <button type="button" onClick={removeLogo}>Remove</button>
-            </div>
-          )}
-        </fieldset>
-
-        <fieldset>
-          <legend>Keywords (up to 10)</legend>
-          <label>
-            Add keyword
-            <input
-              type="text"
-              value={keywordInput}
-              onChange={(e) => setKeywordInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addKeyword();
-                }
-              }}
-              placeholder="e.g. coffee, breakfast, wifi"
-            />
-            <button type="button" onClick={addKeyword} disabled={form.keywords.length >= 10}>
-              Add Keyword
-            </button>
-          </label>
-
-          <div>
-            {form.keywords.map((kw) => (
-              <span key={kw}>
-                {kw} <button type="button" onClick={() => removeKeyword(kw)}>×</button>
-              </span>
-            ))}
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Amenities (up to 20)</legend>
-          
-          <label>
-            Add custom amenity
-            <input
-              type="text"
-              value={amenityInput}
-              onChange={(e) => setAmenityInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addAmenity();
-                }
-              }}
-              placeholder="e.g. Free WiFi, Outdoor Seating"
-            />
-            <button type="button" onClick={() => addAmenity()} disabled={form.amenities.length >= 20}>
-              Add Amenity
-            </button>
-          </label>
-
-          <div>
-            <strong>Common amenities:</strong>
-            <p><small>Select all that apply. The more you select, the higher chance of attracting customers.</small></p>
-            <div className="amenity-sections">
-              {Object.entries(COMMON_AMENITIES).map(([sectionName, amenities]) => (
-                <div key={sectionName} className="amenity-section">
-                  <div className="amenity-section-header">{sectionName}</div>
-                  <div className="amenity-section-grid">
-                    {amenities.map((amenity) => {
-                      const isChecked = form.amenities.includes(amenity);
-                      const isDisabled = !isChecked && form.amenities.length >= 20;
-                      return (
-                        <label 
-                          key={amenity} 
-                          className={`amenity-checkbox-item ${
-                            isChecked ? 'checked' : ''
-                          } ${
-                            isDisabled ? 'disabled' : ''
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              if (e.target.checked) addAmenity(amenity);
-                              else removeAmenity(amenity);
-                            }}
-                            disabled={isDisabled}
-                          />
-                          <span>{amenity}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {form.amenities.filter(a => !ALL_COMMON_AMENITIES.includes(a)).length > 0 && (
-            <div>
-              <strong>Custom amenities:</strong>
-              <div>
-                {form.amenities.filter(a => !ALL_COMMON_AMENITIES.includes(a)).map((amenity) => (
-                  <span key={amenity}>
-                    {amenity} <button type="button" onClick={() => removeAmenity(amenity)}>×</button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </fieldset>
-
-        <fieldset>
-          <legend>Locations</legend>
-
-          {form.locations.map((loc, locationIndex) => (
-            <div key={loc.id}>
-              <h3>Location {locationIndex + 1}</h3>
-
-              <label>
-                Location Name (If multiple locations)
-                <input
-                  type="text"
-                  value={loc.location_name}
-                  onChange={(e) => updateLocation(locationIndex, { ...loc, location_name: e.target.value })}
-                  placeholder="e.g. Downtown, North Side"
-                />
-              </label>
-
-              {loc.latitude && loc.longitude && (
-                <div>
-                  <div>
-                  <strong>Coordinates:</strong> {loc.latitude.toFixed(6)}, {loc.longitude.toFixed(6)}
-                  </div>
-                  <div>
-                    <strong>We aren't the best at finding the cross streets 😅. Please double-check the street names.
-                    Don't worry, it won't change the location on the map! </strong>
-                  </div>
-                </div>
-              )}
-
-              <label>
-                Cross Street 1 *
-                <input
-                  type="text"
-                  value={loc.cross_street_1}
-                  onChange={(e) => {
-                    const updated = { ...loc, cross_street_1: e.target.value };
-                    updateLocation(locationIndex, updated);
-                  }}
-                  required
-                  placeholder="e.g. Main St"
-                />
-              </label>
-
-              <label>
-                Cross Street 2 *
-                <input
-                  type="text"
-                  value={loc.cross_street_2}
-                  onChange={(e) => {
-                    const updated = { ...loc, cross_street_2: e.target.value };
-                    updateLocation(locationIndex, updated);
-                  }}
-                  required
-                  placeholder="e.g. First Ave"
-                />
-              </label>
-
-              <label>
-                City *
-                <input
-                  type="text"
-                  value={loc.city}
-                  onChange={(e) => {
-                    const updated = { ...loc, city: e.target.value };
-                    updateLocation(locationIndex, updated);
-                  }}
-                  required
-                  placeholder="e.g. Los Angeles"
-                />
-              </label>
-
-              <label>
-                State *
-                <select
-                  value={loc.state}
-                  onChange={(e) => {
-                    const updated = { ...loc, state: e.target.value };
-                    updateLocation(locationIndex, updated);
-                  }}
-                  required
-                >
-                  <option value="">Select state</option>
-                  {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </label>
-
-              <div>
-                <strong>Phone Numbers</strong>
-                {loc.phones.map((phone, phoneIndex) => (
-                  <div key={phoneIndex}>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => {
-                        const updated = [...loc.phones];
-                        updated[phoneIndex] = e.target.value.replace(/\D/g, '');
-                        updateLocation(locationIndex, { ...loc, phones: updated });
-                      }}
-                      pattern="\d{10}"
-                      maxLength={10}
-                      title="Enter a 10-digit phone number (digits only)"
-                      placeholder="5551234567"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => updateLocation(locationIndex, { ...loc, phones: loc.phones.filter((_, j) => j !== phoneIndex) })}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => updateLocation(locationIndex, { ...loc, phones: [...loc.phones, ""] })}
-                >
-                  Add Phone Number
-                </button>
-              </div>
- 
-              {form.is_owner && (
                 <label>
-                  Location Privacy
+                  Business Name *
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  />
+                </label>
+
+                <label>
+                  Category *
                   <select
-                    value={loc.location_privacy}
-                    onChange={(e) => updateLocation(locationIndex, { ...loc, location_privacy: e.target.value as any })}
+                    value={form.category_id}
+                    onChange={(e) => setForm({ ...form, category_id: e.target.value })}
                   >
-                    <option value="intersection">Show nearest intersection (recommended for privacy)</option>
-                    <option value="exact">Show exact location (where you clicked)</option>
-                    <option value="grid">Show general area only</option>
+                    <option value="">Select a category</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
                   </select>
                 </label>
-              )}
 
-              <fieldset>
-                <legend>Hours for {loc.location_name || `Location ${locationIndex + 1}`}</legend>
-                
-                <div className="hours-form">
-                  <div className="hours-form-header">
+                <fieldset>
+                  <legend>Business Logo</legend>
+                  {!form.logo ? (
                     <label>
-                      <input
-                        type="checkbox"
-                        checked={loc.business_hours.always_open}
-                        onChange={(e) =>
-                          updateLocationHours(locationIndex, { ...loc.business_hours, always_open: e.target.checked })
-                        }
-                      />
-                       Open 24/7
+                      Upload business logo. Other photos can be uploaded on details step.
+                      <input type="file" accept="image/*" onChange={handleLogoUpload} />
                     </label>
-                    
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={loc.business_hours.weekly_hours_on_website}
-                        onChange={(e) =>
-                          updateLocationHours(locationIndex, { ...loc.business_hours, weekly_hours_on_website: e.target.checked })
-                        }
-                      />
-                       Hours posted weekly on website
-                    </label>
-                  </div>
+                  ) : (
+                    <div>
+                      <span>{form.logo.name}</span>
+                      <button type="button" onClick={removeLogo}>Remove</button>
+                    </div>
+                  )}
+                </fieldset>
 
-                  {!loc.business_hours.always_open && (
-                    <div className="days-grid">
-                      {DAYS.map((day) => {
-                        const dayHours = loc.business_hours[day] as DayHours;
-                        return (
-                          <div key={day} className="day-hours-container">
-                            <div className="day-header">{DAY_NAMES[day]}</div>
+                <label>
+                  Description
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    rows={4}
+                    maxLength={1000}
+                    placeholder="Describe the business..."
+                  />
+                </label>
 
-                            <div className="day-controls">
-                              <label>
-                                <input
-                                  type="checkbox"
-                                  checked={dayHours.closed}
-                                  onChange={(e) => updateDayHours(locationIndex, day, { closed: e.target.checked, periods: e.target.checked ? [] : [DEFAULT_HOUR_PERIOD()] })}
-                                />
-                                Closed
-                              </label>
-
-                              {!dayHours.closed && (
-                                <label>
-                                  <input
-                                    type="checkbox"
-                                    checked={dayHours.open_24_hours}
-                                    onChange={(e) => updateDayHours(locationIndex, day, { open_24_hours: e.target.checked, periods: e.target.checked ? [] : [DEFAULT_HOUR_PERIOD()] })}
-                                  />
-                                  24 hours
-                                </label>
-                              )}
-                            </div>
-
-                            {!dayHours.closed && !dayHours.open_24_hours && (
-                              <div className="time-periods">
-                                {dayHours.periods.map((period, periodIndex) => (
-                                  <div key={period.id} className="hour-period">
-                                    {dayHours.periods.length > 1 && (
-                                      <div className="period-header">Hours {periodIndex + 1}</div>
-                                    )}
-                                    
-                                    <div className="time-inputs-group">
-                                      <div className="time-input-wrapper">
-                                        <div className="time-input-label">Open</div>
-                                        <input
-                                          className="time-input"
-                                          type="time"
-                                          value={period.open}
-                                          onChange={(e) => updateHourPeriod(locationIndex, day, period.id, { open: e.target.value })}
-                                        />
-                                      </div>
-
-                                      <div className="time-input-wrapper">
-                                        <div className="time-input-label">Close</div>
-                                        <input
-                                          className="time-input"
-                                          type="time"
-                                          value={period.close}
-                                          onChange={(e) => updateHourPeriod(locationIndex, day, period.id, { close: e.target.value })}
-                                        />
-                                      </div>
-                                    </div>
-
-                                    <div className="closes-next-day">
-                                      <input
-                                        type="checkbox"
-                                        checked={period.closes_next_day}
-                                        onChange={(e) => updateHourPeriod(locationIndex, day, period.id, { closes_next_day: e.target.checked })}
-                                      />
-                                      <span>Closes next day (e.g. closes at 2 AM)</span>
-                                    </div>
-
-                                    {dayHours.periods.length > 1 && (
-                                      <div className="period-actions">
-                                        <button 
-                                          type="button" 
-                                          onClick={() => removeHourPeriod(locationIndex, day, period.id)}
-                                        >
-                                          Remove these hours
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                                
-                                <button 
-                                  type="button" 
-                                  className="add-period-btn"
-                                  onClick={() => addHourPeriod(locationIndex, day)}
-                                >
-                                  Add another set of hours for {DAY_NAMES[day]}
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
+                <div>
+                  <strong>Websites</strong>
+                  <label>
+                    Add website, Instagram, Facebook, etc.
+                    <input
+                      type="url"
+                      value={websiteInput}
+                      onChange={(e) => setWebsiteInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addWebsite(); } }}
+                      placeholder="https://example.com"
+                    />
+                    <button type="button" onClick={addWebsite}>Add Website</button>
+                  </label>
+                  {form.websites.length > 0 && (
+                    <div>
+                      {form.websites.map((url, i) => (
+                        <div key={i}>
+                          <input
+                            type="url"
+                            value={url}
+                            onChange={(e) => { const u = [...form.websites]; u[i] = e.target.value; setForm({ ...form, websites: u }); }}
+                            onBlur={(e) => { const v = e.target.value.trim(); if (v && !/^https?:\/\//i.test(v)) { const u = [...form.websites]; u[i] = `https://${v}`; setForm({ ...form, websites: u }); } }}
+                            pattern="https?://[^\s]+\.[a-zA-Z]{2,}(/[^\s]*)?"
+                            title="URL must include a valid suffix (e.g. .com, .co, .org)"
+                          />
+                          <button type="button" onClick={() => removeWebsite(i)}>Remove</button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-              </fieldset>
 
-              <fieldset>
-                <legend>Location Images (up to 3)</legend>
-                
-                {loc.images.length < 3 && (
-                  <label>
-                    Upload images for this location
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={(e) => handleLocationImageUpload(locationIndex, e)}
-                    />
-                  </label>
-                )}
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="contact@business.com"
+                  />
+                </label>
 
                 <div>
-                  {loc.images.map((image, imageIndex) => (
-                    <div key={imageIndex}>
-                      <span>{image.name}</span>
-                      <button 
-                        type="button" 
-                        onClick={() => removeLocationImage(locationIndex, imageIndex)}
+                  <strong>Phone Numbers</strong>
+                  {form.locations[0].phones.map((phone, phoneIndex) => (
+                    <div key={phoneIndex}>
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => {
+                          const updated = [...form.locations[0].phones];
+                          updated[phoneIndex] = e.target.value.replace(/\D/g, '');
+                          updateLocation(0, { ...form.locations[0], phones: updated });
+                        }}
+                        pattern="\d{10}"
+                        maxLength={10}
+                        title="Enter a 10-digit phone number (digits only)"
+                        placeholder="5551234567"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateLocation(0, { ...form.locations[0], phones: form.locations[0].phones.filter((_, j) => j !== phoneIndex) })}
                       >
                         Remove
                       </button>
                     </div>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => updateLocation(0, { ...form.locations[0], phones: [...form.locations[0].phones, ""] })}
+                  >
+                    Add Phone Number
+                  </button>
+                </div>
+
+                <label>
+                  Are you the business owner? *
+                  <select
+                    value={form.is_owner ? "yes" : "no"}
+                    onChange={(e) => setForm({ ...form, is_owner: e.target.value === "yes" })}
+                  >
+                    <option value="">Please select</option>
+                    <option value="yes">Yes, I own this business</option>
+                    <option value="no">No, I'm adding it for the community</option>
+                  </select>
+                </label>
+                {form.is_owner && (
+                  <p><small>Your ownership claim will be reviewed by our team after the business is approved.</small></p>
+                )}
+                {!form.is_owner && (
+                  <p><small>The business owner can claim this listing later once it's approved.</small></p>
+                )}
+              </fieldset>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              {/* Step 2: Location */}
+              <fieldset>
+                <legend>Location</legend>
+                <small>Please provide the main cross streets. We are currently not able to find small streets accurately.</small>
+
+                {form.locations.map((loc, locationIndex) => (
+                  <div key={loc.id} className="wizard-location-block">
+                    <label>
+                      Cross Street 1 *
+                      <input
+                        type="text"
+                        value={loc.cross_street_1}
+                        onChange={(e) => updateLocation(locationIndex, { ...loc, cross_street_1: capitalizeWords(e.target.value) })}
+                        placeholder="e.g. Main St"
+                      />
+                    </label>
+
+                    <label>
+                      Cross Street 2 *
+                      <input
+                        type="text"
+                        value={loc.cross_street_2}
+                        onChange={(e) => updateLocation(locationIndex, { ...loc, cross_street_2: capitalizeWords(e.target.value) })}
+                        placeholder="e.g. First Ave"
+                      />
+                    </label>
+
+                    <label>
+                      City
+                      <input
+                        type="text"
+                        value={loc.city}
+                        onChange={(e) => updateLocation(locationIndex, { ...loc, city: capitalizeWords(e.target.value) })}
+                        placeholder="You can add the zip code instead if you are not sure of the city."
+                      />
+                    </label>
+
+                    <label>
+                      State *
+                      <select
+                        value={loc.state}
+                        onChange={(e) => updateLocation(locationIndex, { ...loc, state: e.target.value })}
+                      >
+                        <option value="">Select state</option>
+                        {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </label>
+
+                    <label>
+                      Zip Code
+                      <input
+                        type="text"
+                        value={loc.zip ?? ''}
+                        onChange={(e) => updateLocation(locationIndex, { ...loc, zip: e.target.value.replace(/\D/g, '').slice(0, 5) })}
+                        placeholder="e.g. 90210"
+                        maxLength={5}
+                        inputMode="numeric"
+                      />
+                      <small style={{ color: '#666', fontSize: '0.9em' }}>
+                        Helps find small streets more accurately
+                      </small>
+                    </label>
+
+                    <div className="wizard-geocode-section">
+                      <div className="wizard-map-preview">
+                        <MapContainer
+                          center={[39.5, -98.35]}
+                          zoom={loc.latitude && loc.longitude ? 16 : 4}
+                          style={{ height: "250px", width: "100%" }}
+                          scrollWheelZoom={false}
+                          attributionControl={false}
+                        >
+                          <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" subdomains="abcd" />
+                          {loc.latitude && loc.longitude && (
+                            <>
+                              <Marker position={[loc.latitude, loc.longitude]} />
+                              <MapRecenter lat={loc.latitude} lng={loc.longitude} />
+                            </>
+                          )}
+                        </MapContainer>
+                      </div>
+                      {geocodingIndex === locationIndex && <p>Finding location...</p>}
+                      {geocodeErrors[locationIndex] && (
+                        <p className="wizard-geocode-error">
+                          {(geocodeAttempts[locationIndex] ?? 0) >= MAX_GEOCODE_ATTEMPTS
+                            ? "Could not find this intersection after several attempts. Please double-check the street names, city, state, or try adding a zip code."
+                            : geocodeErrors[locationIndex]}
+                        </p>
+                      )}
+                      {loc.latitude && loc.longitude && (
+                        loc.approximate ? (
+                          <p className="wizard-geocode-error">
+                            Could not find that exact intersection — showing an approximate location on {loc.cross_street_1}. Double-check the street names and try again, or proceed if this looks close enough.
+                          </p>
+                        ) : (
+                          <p className="wizard-geocode-success">
+                            Business will be shown here. <br /> For privacy and safety concerns, the exact location won't be shown on the map.
+                          </p>
+                        )
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </fieldset>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              {/* Step 3: Hours */}
+              {form.locations.map((loc, locationIndex) => (
+                <fieldset key={loc.id}>
+                  <legend>Hours</legend>
+                  <HoursEditor
+                    hours={loc.business_hours}
+                    flags={{ always_open: loc.always_open, weekly_hours_on_website: loc.weekly_hours_on_website, subject_to_change: loc.subject_to_change }}
+                    onChange={(h) => updateLocation(locationIndex, { ...loc, business_hours: h })}
+                    onFlagsChange={(f) => updateLocation(locationIndex, { ...loc, ...f })}
+                  />
+                </fieldset>
+              ))}
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              {/* Step 4: Amenities, Keywords, Photos */}
+              <fieldset>
+                <legend>Amenities (up to 20)</legend>
+                <p><small>Select all that apply. The more you select, the higher chance of attracting customers.</small></p>
+                <AmenitiesEditor
+                  amenities={form.amenities}
+                  onAdd={addAmenity}
+                  onRemove={removeAmenity}
+                  maxCount={20}
+                />
+              </fieldset>
+
+              <fieldset>
+                <legend>Keywords (up to 10)</legend>
+                <label>
+                  Add keywords. This is what people will search for, so include menu items, services, vibe, etc.
+                  <input
+                    type="text"
+                    value={keywordInput}
+                    onChange={(e) => setKeywordInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addKeyword(); } }}
+                    placeholder="e.g. coffee, breakfast, wifi"
+                  />
+                  <button type="button" onClick={addKeyword} disabled={form.keywords.length >= 10}>
+                    Add Keyword
+                  </button>
+                </label>
+                <div>
+                  {form.keywords.map((kw) => (
+                    <span key={kw}>
+                      {kw} <button type="button" onClick={() => removeKeyword(kw)}>×</button>
+                    </span>
+                  ))}
                 </div>
               </fieldset>
-            </div>
-          ))}
 
-          {form.is_chain && (
-            <button type="button" onClick={addLocation}>
-              Add Another Location for this Business
-            </button>
+              {form.locations.map((loc, locationIndex) => (
+                <fieldset key={loc.id}>
+                  <legend>
+                    Photos for this Location (up to 3)
+                  </legend>
+                  {loc.images.length < 3 && (
+                    <label>
+                      Upload images
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => handleLocationImageUpload(locationIndex, e)}
+                      />
+                    </label>
+                  )}
+                  <div>
+                    {loc.images.map((image, imageIndex) => (
+                      <div key={imageIndex}>
+                        <span>{image.name}</span>
+                        <button type="button" onClick={() => removeLocationImage(locationIndex, imageIndex)}>
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </fieldset>
+              ))}
+            </>
           )}
-         
-        </fieldset>
+        </form>
+      </div>
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Submitting..." : "Submit Business for Review"}
-        </button>
-      </form>
+      {/* Navigation */}
+      <div className="wizard-nav">
+        {step > 1 && (
+          <button type="button" className="wizard-back-btn" onClick={goBack}>
+            ← Back
+          </button>
+        )}
+        {step < TOTAL_STEPS ? (
+          <button key="next" type="button" className="wizard-next-btn" onClick={goNext}>
+            Next →
+          </button>
+        ) : (
+          <button key="submit" type="submit" form="wizard-form" className="wizard-submit-btn" disabled={submitting}>
+            {submitting ? "Submitting..." : "Submit Business for Review"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
