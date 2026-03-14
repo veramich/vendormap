@@ -36,14 +36,19 @@ interface PendingBusiness {
     cross_street_2: string;
     city: string;
     state: string;
+    zip_code: string | null;
+    neighborhood: string | null;
     latitude: number;
     longitude: number;
     phones: string[];
+    local_email: string | null;
     location_privacy: string;
+    geocode_source: string | null;
     business_hours: any;
     always_open: boolean;
     weekly_hours_on_website: boolean;
     subject_to_change: boolean;
+    notes: string | null;
     images?: {
       id: number;
       photo_url: string;
@@ -434,13 +439,32 @@ export default function AdminReview() {
                     src={getValidImageUrl(business.logo_url)!}
                     alt="Business logo"
                     className="business-logo"
+                    style={{ maxWidth: '120px', maxHeight: '120px', objectFit: 'contain' }}
                   />
                 )}
 
                 <p><strong>Category:</strong> {business.category_name}</p>
+                {business.is_chain && <p><strong>Chain:</strong> Yes</p>}
                 {business.description && <p className="business-description">{business.description}</p>}
-                {business.websites && <p className="business-websites"><strong>Website:</strong> {business.websites}</p>}
-                {business.email && <p className="business-email"><strong>Email:</strong> {business.email}</p>}
+                {business.websites && (
+                  <p className="business-websites">
+                    <strong>Website:</strong>{' '}
+                    {Array.isArray(business.websites)
+                      ? business.websites.map((url: string, i: number) => (
+                          <span key={i}>
+                            {i > 0 && ', '}
+                            <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+                          </span>
+                        ))
+                      : <a href={String(business.websites)} target="_blank" rel="noopener noreferrer">{String(business.websites)}</a>}
+                  </p>
+                )}
+                {business.email && (
+                  <p className="business-email">
+                    <strong>Email:</strong>{' '}
+                    <a href={`mailto:${business.email}`}>{business.email}</a>
+                  </p>
+                )}
                 {business.parent_company && <p><strong>Parent Company:</strong> {business.parent_company}</p>}
                 {business.keywords.length > 0 && (
                   <p className="business-keywords"><strong>Keywords:</strong> {business.keywords.join(', ')}</p>
@@ -454,10 +478,17 @@ export default function AdminReview() {
                     const hours = formatBusinessHours(location.business_hours);
                     return (
                       <section key={location.id} className="location-card">
-                        <p>📍 {location.cross_street_1} & {location.cross_street_2}, {location.city}, {location.state}</p>
+                        {location.location_name && (
+                          <p><strong>{location.location_name}</strong></p>
+                        )}
+                        <p>📍 {location.cross_street_1} & {location.cross_street_2}, {location.city}, {location.state}{location.zip_code ? ` ${location.zip_code}` : ''}</p>
+                        {location.neighborhood && <p>🏘️ {location.neighborhood}</p>}
                         {location.phones && location.phones.length > 0 && location.phones.map((ph, i) => (
-                          <p key={i}>📞 {ph}</p>
+                          <p key={i}>📞 <a href={`tel:${ph}`}>{ph}</a></p>
                         ))}
+                        {location.local_email && (
+                          <p>✉️ <a href={`mailto:${location.local_email}`}>{location.local_email}</a></p>
+                        )}
 
                         {location.images && location.images.length > 0 && (
                           <div className="photo-gallery">
@@ -507,6 +538,16 @@ export default function AdminReview() {
                             <p><em>Hours subject to change</em></p>
                           )}
                         </div>
+
+                        {location.notes && (
+                          <p><strong>Notes:</strong> {location.notes}</p>
+                        )}
+
+                        <p style={{ fontSize: '0.85em', color: '#888', marginTop: '8px' }}>
+                          📌 {Number(location.latitude).toFixed(5)}, {Number(location.longitude).toFixed(5)}
+                          {' · '}{location.location_privacy}
+                          {location.geocode_source ? ` · ${location.geocode_source}` : ''}
+                        </p>
                       </section>
                     );
                   })}

@@ -516,9 +516,12 @@ export default function HomePage({
                       <StarDisplay rating={businessRatings.get(loc.business_id)!} size={14} />
                     </div>
                   )}
-
-                  <Link to={`/locations/${loc.location_id}`}>View Details →</Link> <br />
-                  <MapsChooser lat={loc.latitude} lng={loc.longitude} query={businessQuery}>Open in Maps →</MapsChooser>
+                  <div className="popup-links">
+                    <Link to={`/locations/${loc.location_id}`}>View Details →</Link> <br />
+                    <MapsChooser lat={loc.latitude} lng={loc.longitude} query={businessQuery} className="open-in-maps-btn">
+                      Open in Maps &rarr;
+                    </MapsChooser>
+                  </div>
 
                   </div>
                 </Popup>

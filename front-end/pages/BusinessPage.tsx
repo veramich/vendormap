@@ -522,27 +522,25 @@ export default function BusinessPage() {
                                 ★ {reviewsData.avg_rating.toFixed(1)} ({reviewsData.review_count})
                             </span>
                         )}
-                        {user && (
-                            <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+                        <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+                            <button
+                                type="button"
+                                onClick={() => navigate(`/businesses/${business.id}/edit`)}
+                                className="btn btn-secondary btn-small"
+                            >
+                                Edit
+                            </button>
+                            {!business.if_verified && !claimMessage && !showClaimForm && (
                                 <button
                                     type="button"
-                                    onClick={() => navigate(`/businesses/${business.id}/edit`)}
-                                    className="btn btn-secondary btn-small"
+                                    onClick={() => setShowClaimForm(true)}
+                                    className="btn btn-outline btn-small"
+                                    style={{ color: '#ff7300' }}
                                 >
-                                    Edit
+                                    Claim
                                 </button>
-                                {!business.if_verified && !claimMessage && !showClaimForm && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowClaimForm(true)}
-                                        className="btn btn-outline btn-small"
-                                        style={{ color: '#ff7300' }}
-                                    >
-                                        Claim
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -624,6 +622,20 @@ export default function BusinessPage() {
                                 ))}
                                 {location.local_email && (
                                     <p className="bp-contact-row">✉️ <a href={`mailto:${location.local_email}`}>{location.local_email}</a></p>
+                                )}
+                                {business.email && !location.local_email && (
+                                    <p className="bp-contact-row">✉️ <a href={`mailto:${business.email}`}>{business.email}</a></p>
+                                )}
+                                {business.websites && business.websites.length > 0 && (
+                                    <p className="bp-contact-row">🌐 {business.websites.map((url: string, i: number) => (
+                                        <span key={i}>
+                                            {i > 0 && ', '}
+                                            <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+                                        </span>
+                                    ))}</p>
+                                )}
+                                {business.description && (
+                                    <p className="bp-description" style={{ marginTop: '8px' }}>{business.description}</p>
                                 )}
 
                                 <div className="hours-section">
@@ -709,34 +721,12 @@ export default function BusinessPage() {
             )}
 
             {/* Meta info */}
-            {(business.description || business.parent_company || (business.websites && business.websites.length > 0) || business.email || keywords.length > 0 || allAmenities.length > 0) && (
+            {(business.parent_company || keywords.length > 0 || allAmenities.length > 0) && (
                 <div className="bp-meta">
-                    {business.description && (
-                        <p className="bp-description">{business.description}</p>
-                    )}
                     {business.parent_company && (
                         <div className="bp-meta-row">
                             <span className="bp-meta-label">Parent</span>
                             <span>{business.parent_company}</span>
-                        </div>
-                    )}
-                    {business.websites && business.websites.length > 0 && (
-                        <div className="bp-meta-row">
-                            <span className="bp-meta-label">Web</span>
-                            <span>
-                                {business.websites.map((url, i) => (
-                                    <span key={i}>
-                                        {i > 0 && ', '}
-                                        <a href={url} target="_blank" rel="noreferrer">{url}</a>
-                                    </span>
-                                ))}
-                            </span>
-                        </div>
-                    )}
-                    {business.email && (
-                        <div className="bp-meta-row">
-                            <span className="bp-meta-label">Email</span>
-                            <a href={`mailto:${business.email}`}>{business.email}</a>
                         </div>
                     )}
                     {keywords.length > 0 && (

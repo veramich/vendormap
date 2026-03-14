@@ -1,3 +1,21 @@
+/* Style for Maps link in business card actions: orange text, no button look */
+.open-in-maps-btn {
+  background: none !important;
+  color: #ff7300 !important;
+  border: none !important;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 0;
+  text-decoration: underline;
+  border-radius: 0;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.open-in-maps-btn:hover {
+  color: #e06400 !important;
+  background: none !important;
+  text-decoration: underline;
+}
 .leaflet-container {
   height: 100%;
   width: 100%;
@@ -18,6 +36,7 @@
   z-index: 9999;
   overflow: hidden;
 }
+
 
 .maps-chooser-dropdown a {
   padding: 12px 16px;
@@ -166,6 +185,11 @@
   object-fit: cover;
   border-radius: 4px;
   flex-shrink: 0;
+}
+
+.popup-links {
+  display: flex;
+  flex-direction: column;
 }
 
 .marker-icon {
@@ -449,20 +473,12 @@ input[type="search"] {
   border-radius: 6px;
 }
 
-.amenity-checkbox-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin-right: 1rem;
-  margin-bottom: 0.4rem;
-}
 
 .form-buttons,
 .profile-actions,
 .claim-form-buttons,
 .modal-buttons,
 .admin-actions,
-.photo-actions,
 .review-edit-buttons {
   display: flex;
   gap: 12px;
@@ -627,11 +643,6 @@ input[type="search"] {
   white-space: nowrap;
 }
 
-.bp-badge-category {
-  background: rgba(255, 115, 0, 0.15);
-  color: #ff7300;
-  border: 1px solid #ff7300;
-}
 
 .bp-badge-verified {
   background: rgba(22, 163, 74, 0.15);
@@ -645,11 +656,6 @@ input[type="search"] {
   border: 1px solid #f59e0b;
 }
 
-.bp-hero-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
 
 /* Edit / Claim buttons styled to match badge pills */
 .bp-hero-badges .btn {
@@ -794,7 +800,7 @@ input[type="search"] {
   justify-content: space-between;
   align-items: flex-start;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .bp-location-address {
@@ -817,7 +823,7 @@ input[type="search"] {
 
 .bp-contact-row {
   font-size: 13px;
-  margin: 4px 0;
+  margin: 1px 0;
 }
 
 /* ── Reviews header ── */
@@ -891,9 +897,6 @@ input[type="search"] {
   justify-content: flex-end;
 }
 
-.claim-actions {
-  margin-top: 8px;
-}
 
 .locations-grid {
   display: grid;
@@ -904,10 +907,6 @@ input[type="search"] {
   border: 1px solid #334155;
   border-radius: 10px;
   padding: 14px;
-}
-
-.location-title {
-  margin-bottom: 8px;
 }
 
 
@@ -939,11 +938,6 @@ input[type="search"] {
   margin-top: 16px;
 }
 
-.hours-warning {
-  margin: 6px 0 12px 0;
-  font-size: 12px;
-  color: #94a3b8;
-}
 
 .hours-table {
   display: flex;
@@ -1164,18 +1158,6 @@ input[type="search"] {
   margin-bottom: 10px;
 }
 
-.amenities-section {
-  margin-top: 26px;
-}
-
-.amenities-location {
-  margin-bottom: 16px;
-}
-
-.amenities-location-title {
-  margin-bottom: 8px;
-  font-size: 16px;
-}
 
 .amenities-grid {
   display: flex;
@@ -1194,9 +1176,6 @@ input[type="search"] {
   margin-top: 26px;
 }
 
-.reviews-summary {
-  margin-bottom: 10px;
-}
 
 .review-form {
   border-radius: 8px;
@@ -1214,14 +1193,6 @@ input[type="search"] {
   }
 }
 
-.review-form-title {
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #94a3b8;
-  margin: 0 0 10px;
-}
 
 .review-form-grid {
   display: grid;
@@ -1376,9 +1347,6 @@ input[type="search"] {
   margin-bottom: 4px;
 }
 
-.review-rating {
-  margin-bottom: 4px;
-}
 
 .review-text {
   margin-bottom: 6px;
@@ -1410,7 +1378,7 @@ input[type="search"] {
 }
 
 .error-text {
-  color: #b91c1c;
+  color: #ffffff;
 }
 
 .amenity-sections {
@@ -1637,11 +1605,6 @@ input[type="search"] {
 }
 
 
-.wizard-streets-hint {
-  margin-top: 4px;
-  color: #fbbf24;
-  font-size: 12px;
-}
 
 .wizard-container fieldset {
   background: #1e1e1e;
@@ -1907,8 +1870,8 @@ input[type="search"] {
   font-size: 13px;
   padding: 6px 8px;
   border-radius: 6px;
-  background: #ffffff;
-  border-color: #d1d5db;
+  /* background: #ffffff; */
+  border: 1px solid #d1d5db;
   color: #e2e8f0;
   min-height: auto;
   width: 100%;
@@ -1965,7 +1928,42 @@ input[type="search"] {
   padding: 8px 16px 16px;
 }
 
-/* ── Business Card ── */
+@media (max-width: 600px) {
+  .businesses-list-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 4px !important;
+    padding: 4px !important;
+  }
+  .business-card {
+    border-radius: 6px;
+    padding: 4px !important;
+    font-size: 11px !important;
+  }
+  .business-card-photos,
+  .business-card-photo-grid {
+    height: 60px !important;
+    min-height: 60px !important;
+    max-height: 60px !important;
+  }
+  .business-card-title {
+    font-size: 12px !important;
+    padding: 4px 4px 2px !important;
+  }
+  .business-card-category {
+    font-size: 10px !important;
+    padding: 1px 4px !important;
+  }
+  .business-card-content {
+    padding: 2px 0 !important;
+    margin: 2px !important;
+  }
+  .business-card-actions {
+    justify-content: flex-end;
+    gap: 4px !important;
+    padding: 4px !important;
+  }
+}
+
 .business-card {
   border: 1px solid #ffffff;
   border-radius: 10px;
@@ -2030,15 +2028,6 @@ input[type="search"] {
   margin: 0;
 }
 
-.business-card-placeholder {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.5rem;
-  background: #ff7300;
-  border-bottom: 1px solid #ff7300;
-}
 
 .business-card-content {
   display: flex;
@@ -2051,11 +2040,46 @@ input[type="search"] {
 .business-card-actions {
   display: flex;
   flex-direction: row;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
-  padding: 10px 12px 12px;
-  flex-wrap: wrap;
-  margin-top: auto;
+  justify-content: stretch;
+  flex-wrap: nowrap;
+}
+.business-card-actions > * {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+  .business-card-actions button,
+  .business-card-actions a {
+    background: #ff7300;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0px 4px;
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .business-card-actions button:hover,
+  .business-card-actions a:hover {
+    background: #e06400;
+  }
+
+@media (max-width: 600px) {
+  .business-card-actions {
+    gap: 4px;
+  }
+  .business-card-actions > * {
+    font-size: 11px;
+    padding: 6px 0;
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 .business-card-title {
@@ -2102,22 +2126,26 @@ input[type="search"] {
   }
 }
 
-/* ── Add Business Map Button ── */
-.map-add-business-button {
-  background: #ff7300;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 2px 8px #000000;
-  transition: background 0.2s ease;
+
+.btn-ready {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border-color: var(--primary) !important;
 }
 
-@media (hover: hover) {
-  .map-add-business-button:hover {
-    background: #e06400;
-  }
+.btn-ready:hover {
+  background: var(--primary-hover) !important;
 }
+
+.add-field-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.add-field-row input {
+  flex: 1;
+  min-width: 0;
+}
+

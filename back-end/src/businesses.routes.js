@@ -760,6 +760,8 @@ router.get('/admin/pending-businesses', ...requireAuth, requireAdmin, async (req
             cross_street_2,
             city,
             state,
+            zip_code,
+            neighborhood,
             latitude,
             longitude,
             original_latitude,
@@ -767,10 +769,12 @@ router.get('/admin/pending-businesses', ...requireAuth, requireAdmin, async (req
             location_privacy,
             geocode_source,
             phones,
+            local_email,
             business_hours,
             always_open,
             weekly_hours_on_website,
-            subject_to_change
+            subject_to_change,
+            notes
           FROM vendormap.business_locations
           WHERE business_id = ANY($1::uuid[])
           ORDER BY business_id, id

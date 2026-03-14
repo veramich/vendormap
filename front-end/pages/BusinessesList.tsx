@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toStringArray, normalize, isZipCode, haversineMiles, MapsChooser } from '../src/utils';
-import { DAY_OPTIONS, RADIUS_OPTIONS } from '../src/constants';
+import { DAY_OPTIONS, DAY_NAMES, RADIUS_OPTIONS } from '../src/constants';
 
 interface BusinessRow {
 	id: string;
@@ -9,7 +9,7 @@ interface BusinessRow {
 	logo_url?: string | null;
 	photo_urls?: string[] | string | null;
 	category_name?: string | null;
-	days_open?: string[] | string | null;
+	business_hours?: Record<number, { closed: boolean; open_24_hours: boolean }> | null;
 	keywords?: string[] | string | null;
 	amenities?: string[] | string | null;
 }
@@ -126,7 +126,9 @@ export default function BusinessesList() {
 						photoUrls,
 						categories,
 						categoryIcon,
-						daysOpen: toStringArray(row.days_open),
+						daysOpen: row.business_hours
+						? DAY_NAMES.filter((_, i) => row.business_hours![i] && !row.business_hours![i].closed)
+						: [],
 						keywords: toStringArray(row.keywords),
 						amenities: toStringArray(row.amenities),
 						city: "",
@@ -529,13 +531,13 @@ export default function BusinessesList() {
 										)}
 										<div className="business-card-actions">
 											{business.locationId ? (
-												<Link to={`/locations/${business.locationId}`}>View details</Link>
+												<Link to={`/locations/${business.locationId}`}>Details</Link>
 											) : (
 												<span>Location unavailable</span>
 											)}
 											{business.latitude != null && business.longitude != null && (
-												<MapsChooser lat={business.latitude} lng={business.longitude} query={business.name}>
-													Open in Maps →
+												<MapsChooser lat={business.latitude} lng={business.longitude} query={business.name} className="open-in-maps-btn">
+													Maps &rarr;
 												</MapsChooser>
 											)}
 										</div>

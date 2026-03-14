@@ -24,6 +24,19 @@ interface Category {
   color: string;
 }
 
+interface GeocodeResponse {
+  latitude: number;
+  longitude: number;
+  approximate?: boolean;
+  city?: string;
+  zip?: string;
+  error?: string;
+}
+
+interface ApiErrorResponse {
+  error?: string;
+}
+
 interface Location {
   id: string;
   location_name: string;
@@ -98,6 +111,8 @@ export default function AddBusiness() {
   });
   const [keywordInput, setKeywordInput] = useState("");
   const [websiteInput, setWebsiteInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
+  const [phoneInput, setPhoneInput] = useState("");
   const [geocodingIndex, setGeocodingIndex] = useState<number | null>(null);
   const [geocodeErrors, setGeocodeErrors] = useState<Record<number, string>>({});
   const [geocodeAttempts, setGeocodeAttempts] = useState<Record<number, number>>({});
@@ -108,7 +123,7 @@ export default function AddBusiness() {
 
   useEffect(() => {
     fetch("/api/categories")
-      .then((res) => res.json())
+      .then((res) => res.json() as Promise<Category[]>)
       .then(setCategories)
       .catch(console.error);
   }, []);
@@ -215,8 +230,8 @@ export default function AddBusiness() {
       }
       
       const res = await fetch(`/api/geocode?${params}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Could not find location");
+      const data = await res.json() as GeocodeResponse;
+      if (!res.ok) throw new Error(data.error ?? "Could not find location");
       
       // Update location with coordinates and city (if city was auto-populated)
       const updates: Partial<Location> = {
@@ -235,9 +250,9 @@ export default function AddBusiness() {
       }
       
       updateLocation(locationIndex, { ...loc, ...updates });
-    } catch (err: any) {
+    } catch (err: unknown) {
       updateLocation(locationIndex, { ...loc, latitude: null, longitude: null });
-      setGeocodeErrors((prev) => ({ ...prev, [locationIndex]: err.message || "Geocoding failed" }));
+      setGeocodeErrors((prev) => ({ ...prev, [locationIndex]: err instanceof Error ? err.message : "Geocoding failed" }));
     } finally {
       setGeocodingIndex(null);
     }
@@ -344,12 +359,12 @@ export default function AddBusiness() {
       });
 
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Submission failed");
+        const err = await response.json() as ApiErrorResponse;
+        throw new Error(err.error ?? "Submission failed");
       }
       setSubmitted(true);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -440,11 +455,13 @@ export default function AddBusiness() {
                     onChange={(e) => setForm({ ...form, category_id: e.target.value })}
                   >
                     <option value="">Select a category</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
+                    {[...categories]
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
                   </select>
                 </label>
 
@@ -475,9 +492,11 @@ export default function AddBusiness() {
                 </label>
 
                 <div>
-                  <strong>Websites</strong>
-                  <label>
-                    Add website, Instagram, Facebook, etc.
+                  <strong>Websites</strong> <br />
+                  <small>For social media use website/username (e.g., instagram.com/username)</small>
+
+                  <div className="add-field-row">
+                    
                     <input
                       type="url"
                       value={websiteInput}
@@ -485,12 +504,12 @@ export default function AddBusiness() {
                       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addWebsite(); } }}
                       placeholder="https://example.com"
                     />
-                    <button type="button" onClick={addWebsite}>Add Website</button>
-                  </label>
+                    <button type="button" onClick={addWebsite} className={websiteInput.trim() ? 'btn-ready' : ''}>Add Website</button>
+                  </div>
                   {form.websites.length > 0 && (
                     <div>
                       {form.websites.map((url, i) => (
-                        <div key={i}>
+                        <div key={i} className="add-field-row">
                           <input
                             type="url"
                             value={url}
@@ -506,20 +525,39 @@ export default function AddBusiness() {
                   )}
                 </div>
 
-                <label>
-                  Email
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="contact@business.com"
-                  />
-                </label>
+                <div>
+                  <strong>Email</strong>
+                  {form.email ? (
+                    <div className="add-field-row">
+                      <input
+                        type="email"
+                        value={form.email}
+                        readOnly
+                      />
+                      <button type="button" onClick={() => { setEmailInput(form.email); setForm({ ...form, email: '' }); }}>Remove</button>
+                    </div>
+                  ) : (
+                    <div className="add-field-row">
+                      <input
+                        type="email"
+                        value={emailInput}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (emailInput.trim()) { setForm({ ...form, email: emailInput.trim() }); setEmailInput(''); } } }}
+                        placeholder="contact@business.com"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { if (emailInput.trim()) { setForm({ ...form, email: emailInput.trim() }); setEmailInput(''); } }}
+                        className={emailInput.trim() ? 'btn-ready' : ''}
+                      >Add Email</button>
+                    </div>
+                  )}
+                </div>
 
                 <div>
                   <strong>Phone Numbers</strong>
                   {form.locations[0].phones.map((phone, phoneIndex) => (
-                    <div key={phoneIndex}>
+                    <div key={phoneIndex} className="add-field-row">
                       <input
                         type="tel"
                         value={phone}
@@ -541,12 +579,23 @@ export default function AddBusiness() {
                       </button>
                     </div>
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => updateLocation(0, { ...form.locations[0], phones: [...form.locations[0].phones, ""] })}
-                  >
-                    Add Phone Number
-                  </button>
+                  <div className="add-field-row">
+                    <input
+                      type="tel"
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, ''))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (phoneInput.trim()) { updateLocation(0, { ...form.locations[0], phones: [...form.locations[0].phones, phoneInput.trim()] }); setPhoneInput(''); } } }}
+                      maxLength={10}
+                      placeholder="5551234567"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { if (phoneInput.trim()) { updateLocation(0, { ...form.locations[0], phones: [...form.locations[0].phones, phoneInput.trim()] }); setPhoneInput(''); } }}
+                      className={phoneInput.trim() ? 'btn-ready' : ''}
+                    >
+                      Add Phone Number
+                    </button>
+                  </div>
                 </div>
 
                 <label>

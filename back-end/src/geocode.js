@@ -77,10 +77,8 @@ async function geocodeIntersection(crossStreet1, crossStreet2, city, state) {
   const queries = buildQueries(s1, s2, c, st);
 
   for (const q of queries) {
-    console.log('[nominatim] trying:', q);
     const result = await nominatimSearch(q);
     if (result?.lat && result?.lon) {
-      console.log('[nominatim] found:', result.display_name);
       const addr = result.address ?? {};
       const city = addr.city || addr.town || addr.village || addr.hamlet || null;
       const zip = addr.postcode || null;
@@ -88,7 +86,6 @@ async function geocodeIntersection(crossStreet1, crossStreet2, city, state) {
     }
   }
 
-  console.log('[nominatim] all queries failed');
   return null;
 }
 
