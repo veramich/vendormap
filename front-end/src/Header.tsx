@@ -15,7 +15,7 @@ export default function Header() {
             </div>
             <div className="header-center">
                 <Link to="/">
-                    <img src="/logo-transparent.png" alt="VendorMap" className="header-logo" />
+                    <img src="/logo-transparent.png" alt="VendorMaps" className="header-logo" />
                 </Link>
             </div>
             <div className="header-right">

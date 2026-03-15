@@ -1,7 +1,7 @@
 {
-  "name": "VendorMap",
-  "short_name": "VendorMap",
-  "description": "A map of local street vendors and home vendors open to the public.",
+  "name": "VendorMaps",
+  "short_name": "VendorMaps",
+  "description": "A map of local street vendors and home vendors. Add, Search, and Discover your local vendors!",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a1a",
