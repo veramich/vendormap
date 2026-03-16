@@ -65,7 +65,8 @@
 .app-header {
   background-color: #ff7300;
   padding: 10px;
-  height: 56px;  
+  padding-top: calc(10px + env(safe-area-inset-top));
+  height: calc(56px + env(safe-area-inset-top));
   color: white;
   display: flex;
   align-items: center;
@@ -146,7 +147,7 @@
   flex-wrap: wrap;
   gap: 4px;
   flex-shrink: 0;
-  margin-bottom: var(--nav-height);
+  margin-bottom: 0;
 }
 
 .map-attribution {
