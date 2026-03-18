@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { toStringArray, normalize, isZipCode, haversineMiles, MapsChooser, API_BASE } from '../src/utils';
+import { toStringArray, normalize, isZipCode, haversineMiles, MapsChooser, API_BASE, isBusinessOpenNow } from '../src/utils';
 import { DAY_OPTIONS, DAY_NAMES, RADIUS_OPTIONS } from '../src/constants';
 
 interface BusinessRow {
@@ -51,6 +51,7 @@ interface BusinessListItem {
 	crossStreet2: string;
 	latitude: number | null;
 	longitude: number | null;
+	businessHours: unknown;
 }
 
 function getFallbackCategoryIcon(categories: string[]): string {
@@ -73,6 +74,7 @@ export default function BusinessesList() {
 	const [selectedCategory, setSelectedCategory] = useState("");
 	const [selectedDay, setSelectedDay] = useState("");
 	const [selectedAmenity, setSelectedAmenity] = useState("");
+	const [openNowFilter, setOpenNowFilter] = useState(false);
 
 	useEffect(() => {
 		let mounted = true;
@@ -138,6 +140,7 @@ export default function BusinessesList() {
 						crossStreet2: "",
 						latitude: null,
 						longitude: null,
+						businessHours: row.business_hours ?? null,
 					});
 				});
 
@@ -166,6 +169,7 @@ export default function BusinessesList() {
 							crossStreet2: row.cross_street_2?.trim() ?? "",
 							latitude: row.latitude ?? null,
 							longitude: row.longitude ?? null,
+							businessHours: null,
 						});
 						return;
 					}
@@ -341,9 +345,11 @@ export default function BusinessesList() {
 
 			const matchesAmenity = !amenity || normalizedAmenities.some((a) => a === amenity);
 
-			return matchesSearch && matchesLocation && matchesCategory && matchesDay && matchesAmenity;
+			const matchesOpenNow = !openNowFilter || isBusinessOpenNow(business.businessHours);
+
+			return matchesSearch && matchesLocation && matchesCategory && matchesDay && matchesAmenity && matchesOpenNow;
 		});
-	}, [businesses, searchQuery, locationQuery, zipCenter, radiusMiles, selectedCategory, selectedDay, selectedAmenity]);
+	}, [businesses, searchQuery, locationQuery, zipCenter, radiusMiles, selectedCategory, selectedDay, selectedAmenity, openNowFilter]);
 
 	const showingZipRadius = isZipCode(locationQuery.trim()) && zipCenter != null;
 
@@ -446,6 +452,13 @@ export default function BusinessesList() {
 							))}
 						</select>
 					</label>
+					<button
+						type="button"
+						onClick={() => setOpenNowFilter((prev) => !prev)}
+						className={`businesses-list-filter-button ${openNowFilter ? 'active' : ''}`}
+					>
+						Open Now
+					</button>
 				</section>
 			)}
 

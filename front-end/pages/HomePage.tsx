@@ -6,7 +6,7 @@ import L from 'leaflet';
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-import { toStringArray, normalize, isZipCode, haversineMiles, configureLeafletDefaultIcon, MapsChooser, getOpenDaysFromHours, API_BASE } from '../src/utils';
+import { toStringArray, normalize, isZipCode, haversineMiles, configureLeafletDefaultIcon, MapsChooser, getOpenDaysFromHours, isBusinessOpenNow, API_BASE } from '../src/utils';
 import { DAY_OPTIONS, RADIUS_OPTIONS } from '../src/constants';
 
 configureLeafletDefaultIcon();
@@ -94,7 +94,7 @@ function StarDisplay({ rating, size = 16 }: StarDisplayProps) {
 
 export default function HomePage({
   defaultCenter = [33.978371, -118.225212],
-  defaultZoom = 15,
+  defaultZoom = 10,
 }: {
   defaultCenter?: [number, number];
   defaultZoom?: number;
@@ -109,6 +109,7 @@ export default function HomePage({
   const [businessKeywords, setBusinessKeywords] = useState<Map<string, string[]>>(new Map());
   const [businessAmenities, setBusinessAmenities] = useState<Map<string, string[]>>(new Map());
   const [businessRatings, setBusinessRatings] = useState<Map<string, number>>(new Map());
+  const [businessHoursRaw, setBusinessHoursRaw] = useState<Map<string, unknown>>(new Map());
   const [lastRefresh, setLastRefresh] = useState(Date.now());
   
   // Loading and error state
@@ -121,6 +122,7 @@ export default function HomePage({
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedDay, setSelectedDay] = useState('');
   const [selectedAmenity, setSelectedAmenity] = useState('');
+  const [openNowFilter, setOpenNowFilter] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   
   // Map state
@@ -156,10 +158,12 @@ export default function HomePage({
         const keywordsMap = new Map<string, string[]>();
         const amenitiesMap = new Map<string, string[]>();
         const ratingsMap = new Map<string, number>();
+        const hoursRawMap = new Map<string, unknown>();
         for (const biz of bizData) {
           daysMap.set(biz.id, getOpenDaysFromHours(biz.business_hours));
           keywordsMap.set(biz.id, toStringArray(biz.keywords));
           amenitiesMap.set(biz.id, toStringArray(biz.amenities));
+          hoursRawMap.set(biz.id, biz.business_hours ?? null);
         }
         if (ratingsRes.ok) {
           const ratingsData = await ratingsRes.json();
@@ -173,6 +177,7 @@ export default function HomePage({
         setBusinessKeywords(keywordsMap);
         setBusinessAmenities(amenitiesMap);
         setBusinessRatings(ratingsMap);
+        setBusinessHoursRaw(hoursRawMap);
         setLoading(false);
       })
       .catch((err) => {
@@ -315,6 +320,8 @@ export default function HomePage({
         }
       }
 
+      if (openNowFilter && !isBusinessOpenNow(businessHoursRaw.get(loc.business_id))) return false;
+
       return true;
     });
 
@@ -340,7 +347,7 @@ export default function HomePage({
         longitude: Number(loc.longitude) + OFFSET_RADIUS * Math.sin(angle),
       };
     });
-  }, [locations, businessDays, businessKeywords, businessAmenities, searchQuery, zipCenter, radiusMiles, selectedCategory, selectedDay, selectedAmenity]);
+  }, [locations, businessDays, businessKeywords, businessAmenities, businessHoursRaw, searchQuery, zipCenter, radiusMiles, selectedCategory, selectedDay, selectedAmenity, openNowFilter]);
 
   {/* Render logic */}
   if (loading) {
@@ -381,7 +388,7 @@ export default function HomePage({
             <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true">
               <path d="M1 2h12L8 7v4l-2 1V7L1 2z" fill="currentColor" />
             </svg>
-            {(selectedCategory || selectedDay || selectedAmenity) ? ' •' : ''}
+            {(selectedCategory || selectedDay || selectedAmenity || openNowFilter) ? ' •' : ''}
           </button>
         </div>
 
@@ -451,10 +458,17 @@ export default function HomePage({
                 ))}
               </select>
             </label>
-            {(selectedCategory || selectedDay || selectedAmenity) && (
+            <button
+              type="button"
+              onClick={() => setOpenNowFilter((prev) => !prev)}
+              className={`businesses-list-filter-button ${openNowFilter ? 'active' : ''}`}
+            >
+              Open Now
+            </button>
+            {(selectedCategory || selectedDay || selectedAmenity || openNowFilter) && (
               <button
                 type="button"
-                onClick={() => { setSelectedCategory(''); setSelectedDay(''); setSelectedAmenity(''); }}
+                onClick={() => { setSelectedCategory(''); setSelectedDay(''); setSelectedAmenity(''); setOpenNowFilter(false); }}
                 className="businesses-list-filter-button"
               >
                 Clear filters
@@ -501,28 +515,17 @@ export default function HomePage({
                     {loc.business_logo && (
                       <img src={loc.business_logo} alt={loc.business_name} className="popup-logo"/>
                     )}
-                    <div>
-                      <h3>{loc.business_name}</h3>
-                    </div>
+                    <h3 className="popup-title">{loc.business_name}</h3>
                   </div>
-
-                  <div>
-                  <p>
-                    📍 {loc.cross_street_1} & {loc.cross_street_2}<br />
-                  </p>
-
+                  <p className="popup-address">📍 {loc.cross_street_1} & {loc.cross_street_2}</p>
                   {businessRatings.has(loc.business_id) && businessRatings.get(loc.business_id)! > 0 && (
-                    <div style={{ margin: '8px 0' }}>
-                      <StarDisplay rating={businessRatings.get(loc.business_id)!} size={14} />
-                    </div>
+                    <StarDisplay rating={businessRatings.get(loc.business_id)!} size={14} />
                   )}
                   <div className="popup-links">
-                    <Link to={`/locations/${loc.location_id}`}>View Details →</Link> <br />
-                    <MapsChooser lat={loc.latitude} lng={loc.longitude} query={businessQuery} className="open-in-maps-btn">
+                    <Link to={`/locations/${loc.location_id}`}>View Details →</Link>
+                    <MapsChooser lat={loc.latitude} lng={loc.longitude} query={businessQuery}>
                       Open in Maps &rarr;
                     </MapsChooser>
-                  </div>
-
                   </div>
                 </Popup>
               </Marker>

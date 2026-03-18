@@ -108,6 +108,7 @@ export default function BusinessPage() {
     const [showClaimForm, setShowClaimForm] = useState(false);
     const [claimSubmitting, setClaimSubmitting] = useState(false);
     const [claimMessage, setClaimMessage] = useState<string | null>(null);
+    const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
 
     useEffect(() => {
         if (!id) {
@@ -499,8 +500,36 @@ export default function BusinessPage() {
         );
     }
 
+    const photoModal = zoomedPhoto && (
+        <div className="modal-overlay"
+            onClick={() => setZoomedPhoto(null)}>
+                <button className="modal-close-btn"
+                onClick={e => { e.stopPropagation();
+                setZoomedPhoto(null);
+                }}
+                aria-label="Close"
+                type="button"> × </button>
+            <img 
+                src={zoomedPhoto} 
+                alt="Zoomed"
+                style={{
+                    maxWidth: '90vw',
+                    maxHeight: '90vh',
+                    borderRadius: 8,
+                    boxShadow: '0 4px 24px #000a',
+                    background: '#fff',
+            }}
+            onClick={e => e.stopPropagation()} />
+        </div>
+    );
+
+
+
+
+
     return (
         <main className="business-page">
+            {photoModal}
 
             {/* Hero */}
             <div className="bp-hero">
@@ -563,6 +592,8 @@ export default function BusinessPage() {
                                     height={120}
                                     loading="lazy"
                                     decoding="async"
+                                    style={{ cursor: 'zoom-in' }}
+                                    onClick={() => setZoomedPhoto(photo.photo_url ?? src)}
                                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                                 />
                             );
@@ -605,7 +636,7 @@ export default function BusinessPage() {
                                                     viewLng: location.longitude.toString(),
                                                     locationId: location.location_id,
                                                 });
-                                                navigate(`/?${params.toString()}`);
+                                                navigate(`/map?${params.toString()}`);
                                             }}
                                             className="btn btn-primary btn-small"
                                         >

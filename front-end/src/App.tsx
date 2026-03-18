@@ -11,6 +11,7 @@ import LoginPage from '../pages/LoginPage';
 import CreateAccountPage from '../pages/CreateAccountPage';
 import AdminReview from '../pages/AdminReview';
 import EditBusiness from '../pages/EditBusiness';
+import LandingPage from '../pages/LandingPage';
 
 const routes = [{
   path: '/',
@@ -18,6 +19,9 @@ const routes = [{
   errorElement: <NotFoundPage />,
   children: [{
     path: '/',
+    element: <LandingPage />,
+  },{
+    path: '/map',
     element: <HomePage />,
   },{
     path: '/businesses',

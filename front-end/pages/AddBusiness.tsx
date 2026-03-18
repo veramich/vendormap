@@ -7,6 +7,7 @@ import { US_STATES } from "../src/constants";
 import { HoursEditor } from "../src/components/HoursEditor";
 import type { BusinessHours } from "../src/components/HoursEditor";
 import { AmenitiesEditor } from "../src/components/AmenitiesEditor";
+import { Link } from "react-router-dom";
 
 configureLeafletDefaultIcon();
 
@@ -418,7 +419,7 @@ export default function AddBusiness() {
     return (
       <div>
         <h1>Login Required</h1>
-        <p>You must be logged in to add a business. Please log in and try again.</p>
+        <p>You must be logged in to add a business. Please <Link to="/login">log in</Link> or <Link to="/create-account">sign up</Link> here.</p>
       </div>
     );
   }
@@ -497,6 +498,7 @@ export default function AddBusiness() {
 
                 <label>
                   Description
+                  <small>Separate items with commas</small>
                   <textarea
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}

@@ -22,7 +22,7 @@ export const US_STATES = [
 
 export const COMMON_AMENITIES: Record<string, string[]> = {
   "Business Types": [
-    "Home Based", "Sidewalk Based", "Food Truck", "Farmer's Market Based" , "Farmer's Market", "Pop Up"
+    "Street Vendor", "Home Based", "Food Truck", "Farmer's Market Based" , "Farmer's Market", "Pop Up"
   ],
   "Ordering Methods": [
     "DM To Order", "Text To Order", "Call To Order", "Order Online", "Walk-Up Orders",

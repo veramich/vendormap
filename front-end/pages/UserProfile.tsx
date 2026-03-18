@@ -144,7 +144,7 @@ export default function UserProfile() {
     if (!user) return (
         <>
             <h1>Profile</h1>      
-            <p>Seems like you're not logged in. To view your profile, please <a href="/login">log in</a> or <a href="/create-account">sign up</a> here.</p>
+            <p>Seems like you're not logged in. To view your profile, please <Link to="/login">log in</Link> or <Link to="/create-account">sign up</Link> here.</p>
         </>
     );
 

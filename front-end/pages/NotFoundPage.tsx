@@ -5,7 +5,7 @@ export default function NotFoundPage() {
         <div className="not-found-page">
             <h1>Page Not Found</h1>
             <p>The link you followed must be broken or the page no longer exists.</p>
-            <Link to="/">← Back to Home</Link>
+            <Link to="/map">← Back to Home</Link>
         </div>
     )
 }

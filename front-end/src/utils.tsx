@@ -192,6 +192,31 @@ export function renderStars(rating: number, outOf = 5): string {
   return Array.from({ length: outOf }, (_, index) => (index < rating ? '★' : '☆')).join('');
 }
 
+export function isBusinessOpenNow(hours: unknown): boolean {
+  if (!hours || typeof hours !== 'object' || Array.isArray(hours)) return false;
+  const todayIndex = new Date().getDay();
+  const hoursObj = hours as Record<string, unknown>;
+  const dayData = hoursObj[todayIndex] ?? hoursObj[String(todayIndex)];
+  if (!dayData || typeof dayData !== 'object') return false;
+  const day = dayData as Record<string, unknown>;
+  if (day.closed === true) return false;
+  if (day.open_24_hours === true) return true;
+  if (Array.isArray(day.periods)) {
+    const now = new Date();
+    const currentMin = now.getHours() * 60 + now.getMinutes();
+    return day.periods.some((period: unknown) => {
+      if (!period || typeof period !== 'object') return false;
+      const p = period as Record<string, unknown>;
+      const openMin = parseTimeToMinutes(String(p.open ?? ''));
+      const closeMin = parseTimeToMinutes(String(p.close ?? ''));
+      if (openMin === null || closeMin === null) return false;
+      if (closeMin <= openMin) return currentMin >= openMin || currentMin < closeMin;
+      return currentMin >= openMin && currentMin < closeMin;
+    });
+  }
+  return false;
+}
+
 export function getOpenDaysFromHours(hours: unknown): string[] {
   if (!hours || typeof hours !== 'object' || Array.isArray(hours)) return [];
   const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
