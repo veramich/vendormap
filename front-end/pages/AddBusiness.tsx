@@ -705,7 +705,7 @@ export default function AddBusiness() {
                       {geocodeErrors[locationIndex] && (
                         <p className="wizard-geocode-error">
                           {(geocodeAttempts[locationIndex] ?? 0) >= MAX_GEOCODE_ATTEMPTS
-                            ? "Could not find this intersection after several attempts. Please double-check the street names, city, state, or try adding a zip code."
+                            ? "Could not find this intersection. Please double-check information and try again. We are currently only able to search for main streets."
                             : geocodeErrors[locationIndex]}
                         </p>
                       )}
